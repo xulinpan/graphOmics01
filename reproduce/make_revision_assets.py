@@ -340,8 +340,9 @@ def table1(summ):
          "choices $\\times$ 5 splits). KNN, missForest, MIWAE and not-MIWAE receive RNA principal components and each "
          "protein's cognate transcript. The CPTAC scenarios are semi-synthetic: a detection mask was imposed on complete "
          "TMT ratios. ProCan has natural missingness and is scored only on missing entries quantified in another run "
-         "of the same cell line. Paired differences with bootstrap CIs, win counts, effect sizes and "
-         "within-protein correlations are in Supplementary Tables S1--S4.}",
+         "of the same cell line. Mean ranks are descriptive, because grid points sharing a data replicate or split are "
+         "not independent. Paired differences with replicate-level CIs and win counts, and within-protein correlations, "
+         "are in Supplementary Tables S1--S4 and S18.}",
          "\\label{tab:main}",
          "\\begin{tabular}{l" + "rr" * len(scs) + "}", "\\toprule",
          " & " + " & ".join(f"\\multicolumn{{2}}{{c}}{{{hdr(t)}}}" for _, t in scs) + " \\\\",
@@ -396,16 +397,18 @@ def table2(summ):
     return "\n".join(L) + "\n"
 
 
-def table_full(summ, sc, title, label):
+def table_full(summ, sc, title, label, rl=None):
     ms = summ[sc]["methods"]
+    rv = (rl or {}).get(sc, {}).get("vae_full", {})
     L = ["\\begin{table}[htbp]", "\\centering", "\\scriptsize", "\\setlength{\\tabcolsep}{2.6pt}",
          f"\\caption{{{title}: all methods. RMSE (SD) over grid points; $\\Delta$: mean paired RMSE difference from "
-         "tcsimpute (VAE) with 95\\% bootstrap CI over grid points (positive = worse than tcsimpute); Wins: grid points "
-         "at which tcsimpute had the lower RMSE; $d_z$: Cohen's effect size of the paired differences; $r_w$: mean "
+         "tcsimpute (VAE) (positive = worse than tcsimpute) with a 95\\% two-stage cluster bootstrap CI over data "
+         "replicates; Reps: data replicates in which tcsimpute (VAE) had the lower mean RMSE (grid points in brackets); "
+         "$d_z$: Cohen's effect size of the 20 paired differences, which are not independent (descriptive); $r_w$: mean "
          "within-protein correlation of imputed and true hidden values; Cov.: empirical coverage of nominal 90\\% "
          f"intervals (after conformal adjustment in brackets).}}", f"\\label{{{label}}}",
          "\\begin{tabular}{lrrrrrrr}", "\\toprule",
-         "Method & RMSE (SD) & $\\Delta$ [95\\% CI] & Wins & $d_z$ & $r_w$ & Bias & Cov. \\\\", "\\midrule"]
+         "Method & RMSE (SD) & $\\Delta$ [95\\% CI] & Reps & $d_z$ & $r_w$ & Bias & Cov. \\\\", "\\midrule"]
     for m in MAIN_ORDER:
         v = ms.get(m)
         if v is None or v.get("rmse") is None:
@@ -414,8 +417,13 @@ def table_full(summ, sc, title, label):
         if m == "vae_full" or p is None:
             dcell, wins, dz = "--", "--", "--"
         else:
-            dcell = f"{f3(p['mean_diff'], True)} [{f3(p['ci95'][0], True)}, {f3(p['ci95'][1], True)}]"
-            wins = f"{p['wins_reference']}/{p['n']}"
+            q = rv.get(m)
+            if q is not None:
+                dcell = f"{f3(q['mean_diff'], True)} [{f3(q['cluster_ci95'][0], True)}, {f3(q['cluster_ci95'][1], True)}]"
+                wins = f"{q['replicates_reference_better']}/{q['n_replicates']} ({q['points_reference_better']})"
+            else:
+                dcell = f"{f3(p['mean_diff'], True)} [{f3(p['ci95'][0], True)}, {f3(p['ci95'][1], True)}]"
+                wins = f"{p['wins_reference']}/{p['n']}"
             dz = "--" if p.get("cohens_dz") is None else f"{p['cohens_dz']:.1f}".replace("-", "$-$")
         cov = "--"
         if v.get("coverage90") is not None:
@@ -428,9 +436,56 @@ def table_full(summ, sc, title, label):
     rk = summ[sc].get("ranks")
     if rk:
         L.append("\\midrule")
-        L.append(f"\\multicolumn{{8}}{{p{{0.95\\linewidth}}}}{{Friedman $\\chi^2$ = {rk['friedman_chi2']:.1f} ({len(rk['methods'])} methods, "
-                 f"{rk['n_points']} grid points), $P$ = {rk['friedman_p']:.1e}; Nemenyi critical difference of mean ranks "
+        fr = (rl or {}).get("friedman_replicate_blocks", {}).get(sc)
+        txt = (f"Descriptive rank statistics. Friedman test with data replicates as blocks (RMSE averaged over splits): "
+               f"$\\chi^2$ = {fr['chi2']:.1f} ({fr['n_methods']} methods, {fr['n_blocks']} replicates), $P$ = {fr['p']:.1e}, "
+               f"Kendall's $W$ = {fr['kendall_w']:.2f}. ") if fr else ""
+        L.append(f"\\multicolumn{{8}}{{p{{0.95\\linewidth}}}}{{{txt}With the {rk['n_points']} dependent grid points as blocks: "
+                 f"$\\chi^2$ = {rk['friedman_chi2']:.1f}, " + ("$P<10^{-15}$" if rk['friedman_p'] < 1e-15 else f"$P$ = {rk['friedman_p']:.1e}") + "; Nemenyi critical difference of mean ranks "
                  f"= {rk['nemenyi_cd']:.2f}.}} \\\\".replace("e-", "e$-$"))
+    L += ["\\bottomrule", "\\end{tabular}", "\\end{table}"]
+    return "\n".join(L) + "\n"
+
+
+def table_replevel(rl):
+    """Replicate-level paired differences against the linear variant (Supplementary Table S18)."""
+    if not rl:
+        return "% replicate_level.json not available\n"
+    scs = [s for s, _ in MAIN_SC if s in rl]
+    order = [m for m in MAIN_ORDER if m != "selreg" and not m.startswith("abl_")]
+
+    g = lambda v: f3(v, True).replace("+", "")
+    L = ["\\begin{table}[htbp]", "\\centering", "\\scriptsize", "\\setlength{\\tabcolsep}{3pt}",
+         "\\caption{Paired RMSE differences against tcsimpute (linear) at the level of data replicates. $\\Delta$: mean "
+         "difference over grid points (method minus linear variant; positive = linear variant better) with a 95\\% "
+         "two-stage cluster bootstrap CI (data replicates resampled with replacement, then splits within each replicate; "
+         "10{,}000 resamples). Reps: data replicates in which the linear variant had the lower mean RMSE. Range: smallest "
+         "and largest replicate mean of the difference. Data replicates: 5 simulated data sets; 4 imposed masks on the "
+         "same CPTAC cohort; 4 primary-run choices on the same ProCan cell lines. With 4--5 clusters the intervals are "
+         "approximate and probably too narrow; the replicate counts and ranges are the more robust summaries.}",
+         "\\label{tab:replevel}",
+         "\\begin{tabular}{lrrrrrr}", "\\toprule"]
+    for k in range(0, len(scs), 2):
+        pair = scs[k:k + 2]
+        if k:
+            L.append("\\midrule")
+        L.append(" & " + " & ".join(f"\\multicolumn{{3}}{{c}}{{{dict(MAIN_SC)[s].replace(chr(10), ' ')}}}" for s in pair) + " \\\\")
+        L.append("".join(f"\\cmidrule(lr){{{2 + 3 * i}-{4 + 3 * i}}}" for i in range(len(pair))))
+        L.append("Method & " + " & ".join("$\\Delta$ [95\\% CI] & Reps & Range" for _ in pair) + " \\\\")
+        L.append("\\midrule")
+        for m in order:
+            if not any(m in rl[s].get("selreg", {}) for s in pair):
+                continue
+            cells = []
+            for s in pair:
+                q = rl[s].get("selreg", {}).get(m)
+                if q is None:
+                    cells += ["--", "--", "--"]
+                    continue
+                cells += [f"{g(q['mean_diff'])} [{g(q['cluster_ci95'][0])}, {g(q['cluster_ci95'][1])}]",
+                          f"{q['replicates_reference_better']}/{q['n_replicates']}",
+                          f"{g(q['replicate_min'])} to {g(q['replicate_max'])}"]
+            L.append(" & ".join([LABEL[m]] + cells) + " \\\\")
     L += ["\\bottomrule", "\\end{tabular}", "\\end{table}"]
     return "\n".join(L) + "\n"
 
@@ -603,13 +658,16 @@ def main():
     ap.add_argument("--scaling", default=None)
     ap.add_argument("--out", required=True)
     ap.add_argument("--extra", default=None, help="directory with procan_strata.json, replicate_truth_sim.json, "
-                                                   "missingness_diagnostic.json")
+                                                   "missingness_diagnostic.json, replicate_level.json")
     a = ap.parse_args()
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     summ = json.loads(Path(a.summary).read_text(encoding="utf-8"))
     scaling = json.loads(Path(a.scaling).read_text(encoding="utf-8")) if a.scaling and Path(a.scaling).exists() else None
     w = lambda name, text: (out / name).write_text(text, encoding="utf-8")
+    ex = Path(a.extra) if a.extra else None
+    load = lambda n: json.loads((ex / n).read_text(encoding="utf-8")) if ex and (ex / n).exists() else None
+    rl = load("replicate_level.json")
     w("table1.tex", table1(summ))
     w("table2.tex", table2(summ))
     supp = []
@@ -617,13 +675,12 @@ def main():
         if sc in summ:
             supp.append(table_full(summ, sc, {"SIM": "Nonlinear simulator", "PDAC": "CPTAC PDAC (semi-synthetic, imposed mask)",
                                               "LUAD": "CPTAC LUAD (semi-synthetic, imposed mask)",
-                                              "PROCAN": "ProCan DIA (natural missingness)"}[sc], f"tab:full{sc.lower()}"))
+                                              "PROCAN": "ProCan DIA (natural missingness)"}[sc], f"tab:full{sc.lower()}", rl))
     w("tableS_full.tex", "\n".join(supp))
     w("tableS_sweeps.tex", table_sweeps(summ))
     w("tableS_runtime.tex", table_runtime(summ))
     w("tableS_scaling.tex", table_scaling(scaling))
-    ex = Path(a.extra) if a.extra else None
-    load = lambda n: json.loads((ex / n).read_text(encoding="utf-8")) if ex and (ex / n).exists() else None
+    w("tableS_replevel.tex", table_replevel(rl))
     w("tableS_strata.tex", table_strata(load("procan_strata.json")))
     w("tableS_reptruth.tex", table_reptruth(load("replicate_truth_sim.json")))
     w("tableS_diag.tex", table_diag(load("missingness_diagnostic.json")))
