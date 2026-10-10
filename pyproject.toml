@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tcsimpute"
+version = "0.2.0"
+description = "Transcript-conditioned selection imputation of left-censored proteomics with a probit-selection multimodal VAE"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [
+  { name = "Xulin Pan", email = "xxp5066@psu.edu" },
+  { name = "Jun Lv" },
+  { name = "Chuanming Wang" },
+]
+keywords = ["proteomics", "imputation", "missing not at random", "variational autoencoder", "multi-omics", "censoring"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+dependencies = [
+  "numpy>=1.24",
+  "scipy>=1.10",
+  "scikit-learn>=1.3",
+  "torch>=2.1",
+  "pandas>=2.0",
+]
+
+[project.optional-dependencies]
+plot = ["matplotlib>=3.7"]
+cptac = ["cptac>=1.5"]
+test = ["pytest>=7"]
+all = ["matplotlib>=3.7", "cptac>=1.5", "pytest>=7"]
+
+[project.scripts]
+tcsimpute = "tcsimpute.cli:main"
+tcsimpute-benchmark = "tcsimpute.benchmark.runner:main"
+tcsimpute-summarize = "tcsimpute.benchmark.summarize:main"
+tcsimpute-figure = "tcsimpute.benchmark.figure:main"
+tcsimpute-fetch-cptac = "tcsimpute.benchmark.fetch_cptac:main"
+tcsimpute-report = "tcsimpute.benchmark.report:main"
+tcsimpute-scaling = "tcsimpute.benchmark.scaling:main"
+
+[project.urls]
+Repository = "https://github.com/xulinpan/graphOmics01"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"tcsimpute.benchmark" = ["rmethods.R"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
