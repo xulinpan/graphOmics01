@@ -45,7 +45,12 @@ MAIN_ORDER = ["vae_full", "selreg", "abl_no_latent", "abl_no_skip", "abl_mar_lik
               "miwae_cog", "missforest_r", "knn_cog", "mindet_r", "minprob_r", "qrilc_r", "dsn",
               "cognate_ols", "observed_mean", "oracle"]
 FIG2_ORDER = [m for m in MAIN_ORDER if not m.startswith("abl_")]
-MAIN_SC = [("SIM", "Simulator"), ("PDAC", "CPTAC PDAC"), ("LUAD", "CPTAC LUAD"), ("PROCAN", "ProCan DIA")]
+MAIN_SC = [("SIM", "Simulator\n(simulated data)"), ("PDAC", "CPTAC PDAC\n(imposed mask)"),
+           ("LUAD", "CPTAC LUAD\n(imposed mask)"), ("PROCAN", "ProCan DIA\n(natural)")]
+
+
+def hdr(t):
+    return "\\shortstack{" + t.replace("\n", "\\\\") + "}"
 SWEEP_ROWS = [("SWEEP-probit", "Probit (matched)"), ("SWEEP-logistic", "Logistic detection"),
               ("SWEEP-threshold", "Hard threshold"), ("SWEEP-widelimits", "Wide per-protein limits"),
               ("SWEEP-batch", "Batch-wise missingness"), ("SWEEP-mcar15", "15% MCAR"),
@@ -257,7 +262,7 @@ def fig_calib_downstream(summ, scaling, out):
         emp = [v.get(k) for k in ("coverage_level50", "coverage_level80", "coverage90", "coverage_level95")]
         if None in emp:
             continue
-        ax.plot([0.5, 0.8, 0.9, 0.95], emp, color=c, lw=1.2, marker=mk, ms=3.5, label=title)
+        ax.plot([0.5, 0.8, 0.9, 0.95], emp, color=c, lw=1.2, marker=mk, ms=3.5, label=title.split("\n")[0])
         if v.get("coverage_conformal") is not None:
             ax.plot([0.9], [v["coverage_conformal"]], marker=mk, ms=6, mfc="white", mec=c, mew=1.1, ls="")
     ax.set_xlabel("Nominal coverage")
@@ -333,11 +338,13 @@ def table1(summ):
          "Friedman rank across methods (lower is better; oracle excluded). Grid points: 20 per scenario "
          "(simulator: 5 data replicates $\\times$ 4 splits; CPTAC: 4 masks $\\times$ 5 splits; ProCan: 4 primary-run "
          "choices $\\times$ 5 splits). KNN, missForest, MIWAE and not-MIWAE receive RNA principal components and each "
-         "protein's cognate transcript. Paired differences with bootstrap CIs, win counts, effect sizes and "
+         "protein's cognate transcript. The CPTAC scenarios are semi-synthetic: a detection mask was imposed on complete "
+         "TMT ratios. ProCan has natural missingness and is scored only on missing entries quantified in another run "
+         "of the same cell line. Paired differences with bootstrap CIs, win counts, effect sizes and "
          "within-protein correlations are in Supplementary Tables S1--S4.}",
          "\\label{tab:main}",
          "\\begin{tabular}{l" + "rr" * len(scs) + "}", "\\toprule",
-         " & " + " & ".join(f"\\multicolumn{{2}}{{c}}{{{t}}}" for _, t in scs) + " \\\\",
+         " & " + " & ".join(f"\\multicolumn{{2}}{{c}}{{{hdr(t)}}}" for _, t in scs) + " \\\\",
          "".join(f"\\cmidrule(lr){{{2 + 2 * i}-{3 + 2 * i}}}" for i in range(len(scs))),
          "Method & " + " & ".join("RMSE (SD) & Rank" for _ in scs) + " \\\\", "\\midrule"]
     for m in MAIN_ORDER:
@@ -366,8 +373,8 @@ def table2(summ):
             ("ds_coabundance_mae", "Co-ab.\\ error")]
     scs = [("DS-PDAC", "PDAC"), ("DS-LUAD", "LUAD")]
     L = ["\\begin{table}[t]", "\\centering", "\\footnotesize", "\\setlength{\\tabcolsep}{2.6pt}",
-         "\\caption{Downstream analyses on CPTAC tumours and normal adjacent tissues with an intensity-scale detection "
-         "mask (mean over 4 masks). Tumour-versus-normal Welch tests on imputed data are compared with the same tests "
+         "\\caption{Semi-synthetic downstream analyses: CPTAC tumours and normal adjacent tissues with an imposed "
+         "intensity-scale detection mask (mean over 4 masks). Tumour-versus-normal Welch tests on imputed data are compared with the same tests "
          "on the complete data: Spearman correlation of $t$ statistics, and precision and recall of the BH 5\\% calls. "
          "Co-abundance error: mean absolute difference between imputed and complete protein--protein correlations "
          "(proteins with $\\ge$10\\% missing). No imputation: tests and correlations on observed values only.}",
@@ -454,7 +461,7 @@ def table_runtime(summ):
          "\\caption{Median wall time per job (seconds; one CPU thread for Python methods; R methods single-threaded), "
          "including model selection and test imputation.}", "\\label{tab:runtime}",
          "\\begin{tabular}{l" + "r" * len(scs) + "}", "\\toprule",
-         "Method & " + " & ".join(dict(MAIN_SC)[s] for s in scs) + " \\\\", "\\midrule"]
+         "Method & " + " & ".join(hdr(dict(MAIN_SC)[s]) for s in scs) + " \\\\", "\\midrule"]
     for m in MAIN_ORDER:
         if m == "oracle":
             continue
@@ -607,8 +614,8 @@ def main():
     supp = []
     for i, (sc, t) in enumerate(MAIN_SC, 1):
         if sc in summ:
-            supp.append(table_full(summ, sc, {"SIM": "Nonlinear simulator", "PDAC": "CPTAC PDAC (intensity-scale mask)",
-                                              "LUAD": "CPTAC LUAD (intensity-scale mask)",
+            supp.append(table_full(summ, sc, {"SIM": "Nonlinear simulator", "PDAC": "CPTAC PDAC (semi-synthetic, imposed mask)",
+                                              "LUAD": "CPTAC LUAD (semi-synthetic, imposed mask)",
                                               "PROCAN": "ProCan DIA (natural missingness)"}[sc], f"tab:full{sc.lower()}"))
     w("tableS_full.tex", "\n".join(supp))
     w("tableS_sweeps.tex", table_sweeps(summ))
