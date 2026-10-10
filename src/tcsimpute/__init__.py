@@ -14,6 +14,6 @@ Quick start::
 from .imputer import TCSImputer, match_cognates
 from .model import CensoredMultimodalVAE, VAEConfig, train_model
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 __all__ = ["TCSImputer", "match_cognates", "CensoredMultimodalVAE", "VAEConfig", "train_model",
            "__version__"]

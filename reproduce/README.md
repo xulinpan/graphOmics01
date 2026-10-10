@@ -1,7 +1,11 @@
 # Reproducing the paper
 
 Run everything from one working directory; the scripts expect `data_cptac/`, `data_procan/` and
-`runs_revision/` there. Install the package first (`pip install -e ".[all]"`).
+`runs_revision/` there. Install the package with the reproduction extras first
+(`pip install -e ".[reproduce]"`, which adds matplotlib, cptac, pytest, requests and h5py), and R 4.5
+for the R comparators. The benchmark runs recorded tcsimpute 0.1.0, Python 3.12.15, NumPy 2.4.4,
+SciPy 1.18.1, scikit-learn 1.9.1, PyTorch 2.11.0, pandas 3.0.6, cptac 1.5.14, R 4.5.0, imputeLCMD 2.1,
+missForest 1.5 and proDA 1.22.1 (Supplementary Table S12); the benchmark modules are unchanged since.
 
 | Step | Command | Output |
 |---|---|---|
@@ -18,6 +22,7 @@ Run everything from one working directory; the scripts expect `data_cptac/`, `da
 | Parameter recovery | `python reproduce/parameter_recovery.py --out recovery --workers 14` then `python reproduce/recovery_tables.py recovery/parameter_recovery.json assets` | `parameter_recovery.json`, Supplementary Tables S13–S14 |
 | Error control | `python reproduce/inference_calibration.py --cptac-dir data_cptac --out inference --workers 12` then `python reproduce/inference_tables.py inference/inference_calibration.json assets` | `inference_calibration.json`, Supplementary Table S15 |
 | Replicate-level comparisons | `python reproduce/replicate_level.py runs_revision replicate_level.json` | `replicate_level.json` (read by `make_revision_assets.py`), Supplementary Tables S1-S4 and S18 |
+| UniProt gene names | `curl -o uniprot_human_reviewed_genes.tsv "https://rest.uniprot.org/uniprotkb/stream?format=tsv&fields=accession,id,gene_primary,gene_synonym&query=%28organism_id%3A9606%29%20AND%20%28reviewed%3Atrue%29"` | reviewed human UniProt entries (the paper used the release downloaded on 10 October 2026) |
 | Matching and filtering | `python reproduce/matching_summary.py --cptac-dir data_cptac --procan-dir data_procan --uniprot uniprot_human_reviewed_genes.tsv --out matching_summary.json`, `python reproduce/procan_mismatch_sensitivity.py runs_revision data_procan uniprot_human_reviewed_genes.tsv procan_mismatch.json`, then `python reproduce/matching_tables.py matching_summary.json procan_mismatch.json assets` | Supplementary Tables S19-S21 (UniProt table: reviewed human entries, fields accession, id, gene_primary, gene_synonym, from rest.uniprot.org) |
 | Compact summary | `python reproduce/compact_summary.py` | `summary_compact.json` |
 | Figures and tables | `python reproduce/make_revision_assets.py --summary summary_compact.json --scaling runs_revision/scaling.json --extra . --out assets` | Figures 1–4 (PDF, TIFF, JPEG) and all LaTeX tables |

@@ -28,6 +28,7 @@ to reproduce it.
 pip install tcsimpute             # from PyPI, once released
 pip install "git+https://github.com/xulinpan/graphOmics01"   # from GitHub
 pip install -e ".[all]"           # from a clone, with plotting, CPTAC download and tests
+pip install -e ".[reproduce]"     # everything needed to reproduce the paper (adds requests, h5py)
 ```
 
 Python 3.10 or newer is required, with PyTorch 2.1 or newer. A CPU build of PyTorch is enough; a CUDA
@@ -129,7 +130,7 @@ grid and build the paper's figures and tables; `reproduce/README.md` gives the f
 python reproduce/fetch_cptac_cohort.py --cohort Pdac --out data_cptac
 python reproduce/fetch_cptac_cohort.py --cohort Luad --out data_cptac
 python reproduce/fetch_procan.py data_procan
-python reproduce/export_procan_rna.py            # needs h5py
+python reproduce/export_procan_rna.py            # needs h5py (in the [reproduce] extra)
 
 # 2. The revision grid: 4 primary, 13 sweep and 2 downstream scenarios, 3,084 runs
 export TCSIMPUTE_RSCRIPT=/path/to/Rscript         # for proDA, imputeLCMD and missForest
@@ -188,8 +189,8 @@ the rank tests.
 ## Citation
 
 See `CITATION.cff`. Until the paper is published, please cite the software archive:
-Pan X, Lv J, Wang C. tcsimpute (version 0.2.0). Zenodo. https://doi.org/10.5281/zenodo.23280804
-(https://doi.org/10.5281/zenodo.23280803 always resolves to the latest version).
+Pan X, Lv J, Wang C. tcsimpute. Zenodo. https://doi.org/10.5281/zenodo.23280803
+(this DOI covers all versions and resolves to the latest; the record lists the DOI of each release).
 
 ## License
 
