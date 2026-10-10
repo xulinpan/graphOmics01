@@ -115,7 +115,8 @@ is scored against the mean of the cell line's other runs.
 The ablations attribute the gains to the selection likelihood and the cognate-transcript term.
 Transformer fusion and the contrastive term did not measurably help. Nominal 90% intervals covered
 73–84% of hidden values (77–86% after the built-in conformal recalibration), so treat them as
-approximate. On ProCan, transcript-aware imputers that assume missingness at random were more
+approximate: they are not reliably calibrated for missing values, because the recalibration uses observed
+values, which are not exchangeable with missing ones when missingness depends on abundance. On ProCan, transcript-aware imputers that assume missingness at random were more
 accurate, because many DIA misses are sporadic rather than below a detection limit.
 
 ## Reproducing the paper
