@@ -16,6 +16,7 @@ Run everything from one working directory; the scripts expect `data_cptac/`, `da
 | Replicate truth | `python reproduce/replicate_truth_sim.py` | `replicate_truth_sim.json` (Table S7) |
 | Diagnostic | `python reproduce/missingness_diagnostic.py` | `missingness_diagnostic.json` (Table S8) |
 | Parameter recovery | `python reproduce/parameter_recovery.py --out recovery --workers 14` then `python reproduce/recovery_tables.py recovery/parameter_recovery.json assets` | `parameter_recovery.json`, Supplementary Tables S13–S14 |
+| Error control | `python reproduce/inference_calibration.py --cptac-dir data_cptac --out inference --workers 12` then `python reproduce/inference_tables.py inference/inference_calibration.json assets` | `inference_calibration.json`, Supplementary Table S15 |
 | Compact summary | `python reproduce/compact_summary.py` | `summary_compact.json` |
 | Figures and tables | `python reproduce/make_revision_assets.py --summary summary_compact.json --scaling runs_revision/scaling.json --extra . --out assets` | Figures 1–4 (PDF, TIFF, JPEG) and all LaTeX tables |
 

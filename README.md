@@ -93,8 +93,10 @@ tcsimpute --rna rna.csv --protein protein.csv --out imputed.csv --intervals pi [
 
 tcsimpute predicts missing protein values from a statistical model. Imputed values are estimates
 under the model's assumptions, not measurements: keep them flagged (the input mask tells you which
-entries were missing), check important conclusions against an available-case analysis or across
-draws from `predict_interval`, and do not use imputed values as evidence about individual samples or
+entries were missing), check important conclusions against an available-case analysis or by multiple
+imputation (the paper's `reproduce/inference_calibration.py` shows how to draw imputations and
+combine tests by Rubin's rules; single imputations attenuated group differences and under-covered
+confidence intervals in its experiments), and do not use imputed values as evidence about individual samples or
 patients, for example for clinical or biomarker decisions, without independent measurement.
 
 ### What to expect

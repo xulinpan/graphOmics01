@@ -374,7 +374,8 @@ def table2(summ):
     scs = [("DS-PDAC", "PDAC"), ("DS-LUAD", "LUAD")]
     L = ["\\begin{table}[t]", "\\centering", "\\footnotesize", "\\setlength{\\tabcolsep}{2.6pt}",
          "\\caption{Semi-synthetic downstream analyses: CPTAC tumours and normal adjacent tissues with an imposed "
-         "intensity-scale detection mask (mean over 4 masks). Tumour-versus-normal Welch tests on imputed data are compared with the same tests "
+         "intensity-scale detection mask (mean over 4 masks): agreement with complete-data statistics, not a test of "
+         "error control (see Supplementary Table S15). Tumour-versus-normal Welch tests on imputed data are compared with the same tests "
          "on the complete data: Spearman correlation of $t$ statistics, and precision and recall of the BH 5\\% calls. "
          "Co-abundance error: mean absolute difference between imputed and complete protein--protein correlations "
          "(proteins with $\\ge$10\\% missing). No imputation: tests and correlations on observed values only.}",
