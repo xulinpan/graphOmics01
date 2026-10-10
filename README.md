@@ -189,8 +189,8 @@ the rank tests.
 ## Citation
 
 See `CITATION.cff`. Until the paper is published, please cite the software archive:
-Pan X, Lv J, Wang C. tcsimpute. Zenodo. https://doi.org/10.5281/zenodo.23280803
-(this DOI covers all versions and resolves to the latest; the record lists the DOI of each release).
+Pan X, Lv J, Wang C. tcsimpute (version 0.2.1). Zenodo. https://doi.org/10.5281/zenodo.23288086
+(https://doi.org/10.5281/zenodo.23280803 covers all versions and resolves to the latest).
 
 ## License
 
