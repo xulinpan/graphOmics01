@@ -15,6 +15,7 @@ Run everything from one working directory; the scripts expect `data_cptac/`, `da
 | ProCan strata | `python reproduce/procan_strata.py` | `procan_strata.json` (Supplementary Table S6) |
 | Replicate truth | `python reproduce/replicate_truth_sim.py` | `replicate_truth_sim.json` (Table S7) |
 | Diagnostic | `python reproduce/missingness_diagnostic.py` | `missingness_diagnostic.json` (Table S8) |
+| Parameter recovery | `python reproduce/parameter_recovery.py --out recovery --workers 14` then `python reproduce/recovery_tables.py recovery/parameter_recovery.json assets` | `parameter_recovery.json`, Supplementary Tables S13–S14 |
 | Compact summary | `python reproduce/compact_summary.py` | `summary_compact.json` |
 | Figures and tables | `python reproduce/make_revision_assets.py --summary summary_compact.json --scaling runs_revision/scaling.json --extra . --out assets` | Figures 1–4 (PDF, TIFF, JPEG) and all LaTeX tables |
 
