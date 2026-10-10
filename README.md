@@ -73,6 +73,13 @@ tcsimpute --rna rna.csv --protein protein.csv --out imputed.csv --intervals pi [
 - **`model`.** `"linear"` fits in seconds and was as accurate as the VAE in most of the paper's
   settings; it is a good default. `"vae"` was better when per-protein detection limits varied widely
   and on PDAC tumours.
+- **Per-protein detection limits.** `limit_deviation_sd` (default 0.25, standardized units) is the
+  prior SD of each protein's deviation from the shared detection limit. In the paper's simulations,
+  a value that was too small was the largest source of error when limits differed strongly between
+  proteins, while a wider prior (e.g. `TCSImputer(model="linear", limit_deviation_sd=1.0)`) cost
+  little when they did not. The detection parameters are only weakly identified (see the paper's
+  parameter-recovery study, `reproduce/parameter_recovery.py`), so do not read them as measured
+  instrument properties.
 - **Model settings.** Every field of `VAEConfig` can be passed as a keyword, e.g.
   `TCSImputer(latent_dim=8)`, `TCSImputer(device="cuda")` or `TCSImputer(likelihood="mar")`.
 - **Is the selection model appropriate?** It assumes that missing values are mostly below a detection

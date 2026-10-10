@@ -160,7 +160,8 @@ class TCSImputer:
             data = _Data(rna_z, prot_z, mask, self.protein_mean_, self.protein_scale_, cognate,
                          np.sort(np.concatenate([train_idx, val_idx])))
             self.model_ = fit_selection_regression(data, limit_scale=self.config.limit_scale,
-                                                   seed=self.random_state)
+                                                   seed=self.random_state,
+                                                   limit_deviation_sd=self.config.limit_deviation_sd)
             self.diagnostics_ = {"nll": self.model_["nll"], "detection_slope": float(self.model_["s"]),
                                  "mcar_rate": float(self.model_["pi"])}
             return self
