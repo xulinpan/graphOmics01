@@ -1,5 +1,7 @@
 # tcsimpute
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23280803.svg)](https://doi.org/10.5281/zenodo.23280803)
+
 **Transcript-conditioned selection imputation of left-censored proteomics.**
 
 In mass-spectrometry proteomics, many values are missing because the peptide fell below a detection
@@ -167,7 +169,9 @@ the rank tests.
 
 ## Citation
 
-See `CITATION.cff`. Until the paper is published, please cite the repository and the preprint.
+See `CITATION.cff`. Until the paper is published, please cite the software archive:
+Pan X, Lv J, Wang C. tcsimpute (version 0.2.0). Zenodo. https://doi.org/10.5281/zenodo.23280804
+(https://doi.org/10.5281/zenodo.23280803 always resolves to the latest version).
 
 ## License
 
