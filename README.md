@@ -82,6 +82,14 @@ tcsimpute --rna rna.csv --protein protein.csv --out imputed.csv --intervals pi [
   transcript separates observed from missing samples: medians near 0.5 indicate missingness unrelated
   to abundance.
 
+### Scope
+
+tcsimpute predicts missing protein values from a statistical model. Imputed values are estimates
+under the model's assumptions, not measurements: keep them flagged (the input mask tells you which
+entries were missing), check important conclusions against an available-case analysis or across
+draws from `predict_interval`, and do not use imputed values as evidence about individual samples or
+patients, for example for clinical or biomarker decisions, without independent measurement.
+
 ### What to expect
 
 Hidden-entry RMSE in standardized units (mean over 20 grid points; from the paper). The CPTAC
