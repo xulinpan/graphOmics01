@@ -3,17 +3,17 @@
 Run everything from one working directory; the scripts expect `data_cptac/`, `data_procan/` and
 `runs_revision/` there. Install the package with the reproduction extras first
 (`pip install -e ".[reproduce]"`, which adds matplotlib, cptac, pytest, requests and h5py), and R 4.5
-for the R comparators. The benchmark runs recorded tcsimpute 0.1.0, Python 3.12.15, NumPy 2.4.4,
+for the R comparators. The benchmark runs recorded tcsimpute 0.1.0 or, for the runs added in version 0.2.2, 0.2.1 (the code released as 0.2.2 before its version number was raised), Python 3.12.15, NumPy 2.4.4,
 SciPy 1.18.1, scikit-learn 1.9.1, PyTorch 2.11.0, pandas 3.0.6, cptac 1.5.14, R 4.5.0, imputeLCMD 2.1,
-missForest 1.5 and proDA 1.22.1 (Supplementary Table S12); the benchmark modules are unchanged since.
+missForest 1.5, proDA 1.22.1 and Pirat 1.2.6 (Supplementary Table S12).
 
 | Step | Command | Output |
 |---|---|---|
-| R comparators | `Rscript reproduce/install_r_packages.R` | proDA, imputeLCMD, missForest in the R user library |
+| R comparators | `Rscript reproduce/install_r_packages.R` | proDA, imputeLCMD, missForest and Pirat (Bioconductor; Pirat creates its own Python environment with basilisk on first use) in the R user library |
 | CPTAC data | `python reproduce/fetch_cptac_cohort.py --cohort Pdac --out data_cptac` (and `--cohort Luad`) | `<cohort>_transcriptomics.csv`, `<cohort>_proteomics.csv`, provenance with SHA-256 |
 | ProCan data | `python reproduce/fetch_procan.py data_procan` | figshare 10.6084/m9.figshare.19345397 files (about 0.6 GB) |
 | ProCan RNA | `python reproduce/export_procan_rna.py` (needs `h5py`) | `data_procan/procan_transcriptomics.csv` |
-| Benchmark | `tcsimpute-benchmark --grid revision --out runs_revision --cptac-dir data_cptac --procan-dir data_procan --scenarios SIM PDAC LUAD PROCAN DS-PDAC DS-LUAD sweeps` | 3,084 run folders |
+| Benchmark | `tcsimpute-benchmark --grid revision --out runs_revision --cptac-dir data_cptac --procan-dir data_procan --scenarios SIM PDAC LUAD PROCAN DS-PDAC DS-LUAD sweeps ALT-PDAC-logit ALT-PDAC-sporadic ALT-LUAD-logit ALT-LUAD-sporadic` | 3,782 run folders |
 | Scaling | `tcsimpute-scaling --out runs_revision/scaling.json` | runtime table (uses a GPU if present) |
 | Summary | `tcsimpute-report --runs runs_revision` | `runs_revision/summary/summary_revision.json` and CSV |
 | ProCan strata | `python reproduce/procan_strata.py` | `procan_strata.json` (Supplementary Table S6) |

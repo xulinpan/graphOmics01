@@ -262,6 +262,38 @@ def selection_regression_predict(fit, protocol, rows, observed=None):
     return _fill(protocol, rows, pred, observed)
 
 
+def selection_regression_interval(fit, protocol, rows, level=0.9, seed=0, condition="hidden",
+                                  n_draws=500):
+    """Predictive interval of the linear variant, as in ``TCSImputer(model="linear").predict_interval``.
+
+    Draws x ~ N(mu, sigma^2) and weights each draw by the probability of the conditioning event:
+    undetected, pi + (1 - pi) Phi((tau - x) / s) (``condition="hidden"``), or detected,
+    (1 - pi) Phi((x - tau) / s) (``condition="observed"``). Returns weighted quantiles for every
+    entry of ``rows`` (standardized scale).
+    """
+    from scipy.stats import norm
+    X = _tobit_design(protocol, fit["pcs"], rows)
+    mu = (fit["alpha"] + (X * fit["beta"]).sum(-1)).numpy()
+    sd = fit["sd"].numpy()
+    tau, s, pi = fit["tau"].numpy(), float(fit["s"]), float(fit["pi"])
+    rng = np.random.default_rng(seed)
+    lo, hi = np.empty_like(mu), np.empty_like(mu)
+    q = ((1 - level) / 2, (1 + level) / 2)
+    cols = np.arange(mu.shape[1])
+    for i in range(mu.shape[0]):
+        x = mu[i] + sd * rng.standard_normal((n_draws, mu.shape[1]))
+        if condition == "hidden":
+            w = pi + (1 - pi) * norm.cdf((tau - x) / s)
+        else:
+            w = (1 - pi) * norm.cdf((x - tau) / s)
+        order = np.argsort(x, 0)
+        xs, ws = np.take_along_axis(x, order, 0), np.take_along_axis(w, order, 0)
+        cw = np.cumsum(ws, 0) / np.maximum(ws.sum(0), 1e-300)
+        lo[i] = xs[np.argmax(cw >= q[0], 0), cols]
+        hi[i] = xs[np.argmax(cw >= q[1], 0), cols]
+    return lo.astype(np.float32), hi.astype(np.float32)
+
+
 def _tobit_design(protocol, pcs, rows):
     cog = np.asarray(protocol.cognate)
     xc = np.where(cog[None, :] >= 0, protocol.rna[rows][:, np.clip(cog, 0, None)], 0.0)

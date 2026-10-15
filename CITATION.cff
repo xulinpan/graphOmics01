@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 title: "tcsimpute: transcript-conditioned selection imputation of left-censored proteomics"
-version: 0.2.1
+version: 0.2.2
 doi: 10.5281/zenodo.23280803
 identifiers:
   - type: doi
@@ -10,7 +10,7 @@ identifiers:
   - type: doi
     value: 10.5281/zenodo.23288086
     description: "Version 0.2.1"
-date-released: 2026-10-10
+date-released: 2026-10-15
 license: MIT
 repository-code: "https://github.com/xulinpan/graphOmics01"
 authors:

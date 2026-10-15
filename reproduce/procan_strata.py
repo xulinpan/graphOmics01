@@ -4,14 +4,16 @@ other runs (low detection rate = near the detection limit; high = a sporadic mis
 Writes procan_strata.json: {method: {stratum: {n, rmse, bias}}} pooled over the 20 grid points.
 """
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 D = Path("data_procan")
-RUNS = Path("runs_revision/PROCAN")
-METHODS = ["vae_full", "selreg", "abl_no_latent", "abl_mar_likelihood", "proda", "missforest_r", "knn_cog",
+RUNS = Path(sys.argv[1] if len(sys.argv) > 1 else "runs_revision") / "PROCAN"
+OUT = Path(sys.argv[2] if len(sys.argv) > 2 else "procan_strata.json")
+METHODS = ["vae_full", "selreg", "abl_no_latent", "abl_mar_likelihood", "pirat_t", "pirat", "proda", "missforest_r", "knn_cog",
            "notmiwae_cog", "miwae_cog", "mindet_r", "qrilc_r", "dsn", "cognate_ols", "observed_mean", "tobit"]
 STRATA = [(0.0, 1 / 3, "rarely detected (<=1/3 of other runs)"), (1 / 3, 2 / 3, "sometimes (1/3-2/3)"),
           (2 / 3, 1.01, "usually detected (>2/3)")]
@@ -57,6 +59,6 @@ for mth, d in acc.items():
         if parts:
             e = np.concatenate(parts)
             out[mth][lab] = {"n": int(e.size), "rmse": float(np.sqrt(np.mean(e ** 2))), "bias": float(e.mean())}
-Path("procan_strata.json").write_text(json.dumps(out, indent=1))
-for mth in METHODS:
+OUT.write_text(json.dumps(out, indent=1))
+for mth in [m for m in METHODS if m in out and out[m]]:
     print(mth.ljust(20), "  ".join(f"{v['rmse']:.3f}/{v['bias']:+.2f} (n={v['n']})" for v in out[mth].values()))

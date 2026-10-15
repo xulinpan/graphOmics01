@@ -297,6 +297,13 @@ class CPTACConfig:
     oversample: float = 1.4            # proteins drawn before the observed-fraction filter ('intensity')
     min_observed_fraction: float = 0.3
     include_normals: bool = False      # keep normal adjacent tissue (".N" samples) for downstream tests
+    # detection mechanism for mask='intensity' (second revision adds mechanisms outside the model family):
+    #   'probit'           Equation (1): shared limit, sample offsets, shared slope, MCAR (default)
+    #   'logistic_protein' per-protein logistic curves: limits spread with SD 1 within-protein SD,
+    #                      slopes log-normal around 0.5 SD (log-SD 0.5), no sample offsets, MCAR
+    #   'sporadic'         probit censoring without MCAR plus protein-specific random loss whose
+    #                      fraction is drawn from Beta(1, 4) (mean 0.2), as for DIA identification
+    mechanism: str = "probit"
 
 
 def load_cptac(data_dir, mask_seed, config=None, cohort="pdac"):
@@ -356,8 +363,28 @@ def load_cptac(data_dir, mask_seed, config=None, cohort="pdac"):
         values = protein - protein.mean(0) + baseline          # intensity-like scale
         # detection on the intensity scale, shared slope in units of the within-protein SD
         slope = c.detection_slope * sd_within
-        d0 = calibrate_detection_limit(values, offsets * sd_within, slope, c.mcar, c.target_missing)
-        p_obs = detection_probability(values, d0 + offsets[:, None] * sd_within, slope, c.mcar)
+        lo, hi = float(values.min()) - 10 * slope, float(values.max()) + 10 * slope
+        if c.mechanism == "probit":
+            d0 = calibrate_detection_limit(values, offsets * sd_within, slope, c.mcar, c.target_missing)
+            p_obs = detection_probability(values, d0 + offsets[:, None] * sd_within, slope, c.mcar)
+        elif c.mechanism == "logistic_protein":
+            npr = values.shape[1]
+            dev = mrng.normal(0, 1.0, npr) * sd_within
+            scales = _logistic_scale(slope * np.exp(mrng.normal(0, 0.5, npr)))
+            prob = lambda d: (1 - c.mcar) * _sigmoid((values - d - dev[None, :]) / scales[None, :])
+            d0 = _calibrate(lambda d: 1 - prob(d).mean(), c.target_missing, lo, hi)
+            p_obs = prob(d0)
+            mech.update({"limit_spread_sd": sd_within, "slope_logsd": 0.5, "sample_offset_sd": 0.0})
+        elif c.mechanism == "sporadic":
+            frac = mrng.beta(1.0, 4.0, values.shape[1])
+            prob = lambda d: (detection_probability(values, d + offsets[:, None] * sd_within, slope, 0.0)
+                              * (1 - frac[None, :]))
+            d0 = _calibrate(lambda d: 1 - prob(d).mean(), c.target_missing, lo, hi)
+            p_obs = prob(d0)
+            mech.update({"sporadic_beta": [1.0, 4.0], "mcar": 0.0})
+        else:
+            raise ValueError(c.mechanism)
+        mech["kind"] = f"imposed_{c.mechanism}_intensity"
         observed = mrng.uniform(size=p_obs.shape) < p_obs
         keep = np.flatnonzero(observed.mean(0) >= c.min_observed_fraction)
         if keep.size < c.n_proteins:

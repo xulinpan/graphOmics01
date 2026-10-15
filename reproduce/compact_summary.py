@@ -1,7 +1,8 @@
 import json
 
-S = json.load(open("runs_revision/summary/summary_revision.json"))
-KEEP = {"n", "runtime_median_s", "rmse", "rmse_sd", "bias", "within_feature_r", "coverage90", "coverage_conformal",
+import sys
+S = json.load(open(sys.argv[1] if len(sys.argv) > 1 else "runs_revision/summary/summary_revision.json"))
+KEEP = {"n", "runtime_median_s", "r_fit_seconds_median", "coverage_pseudo", "rmse", "rmse_sd", "bias", "within_feature_r", "coverage90", "coverage_conformal",
         "coverage_level50", "coverage_level80", "coverage_level95", "interval_width90", "interval_width_conformal",
         "active_units", "ds_de_t_spearman", "ds_de_t_spearman_sd", "ds_de_precision", "ds_de_recall", "ds_de_effect_rmse",
         "ds_coabundance_mae", "ds_coabundance_mae_sd", "ds_de_calls", "ds_de_calls_reference"}
@@ -17,7 +18,7 @@ def rnd(x):
     return x
 
 
-SW = {"vae_full", "selreg", "abl_no_latent", "proda", "notmiwae_cog16", "knn_cog", "mindet_r", "cognate_ols",
+SW = {"vae_full", "selreg", "abl_no_latent", "proda", "pirat_t", "notmiwae_cog16", "knn_cog", "mindet_r", "cognate_ols",
       "observed_mean", "oracle"}
 out = {}
 for sc, res in S.items():

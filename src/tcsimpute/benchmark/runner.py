@@ -75,7 +75,11 @@ REVISION_GRID = {
     "DS-PDAC": {"replicates": [21, 22, 23, 24], "splits": [101], "train_seeds": [1]},
     "DS-LUAD": {"replicates": [21, 22, 23, 24], "splits": [101], "train_seeds": [1]},
     **{k: {"replicates": list(range(301, 311)), "splits": [101], "train_seeds": [1]} for k in SWEEPS},
+    # second revision: CPTAC masks from mechanisms outside the model family (4 masks x 2 splits)
+    **{f"ALT-{c}-{m}": {"replicates": [11, 12, 13, 14], "splits": [101, 202], "train_seeds": [1]}
+       for c in ("PDAC", "LUAD") for m in ("logit", "sporadic")},
 }
+ALT_MECHANISM = {"logit": "logistic_protein", "sporadic": "sporadic"}
 
 V2_VARIANTS = {
     "vae_full": {},
@@ -91,18 +95,23 @@ V2_VARIANTS = {
 R_METHODS = {"proda": "proDA", "mindet_r": "MinDet", "minprob_r": "MinProb", "qrilc_r": "QRILC",
              "missforest_r": "missForest"}
 SEEDLESS = {"oracle", "observed_mean", "mindet", "cognate_ols", "mindet_r", "tobit", "selreg", "proda",
-            "available_case"}
+            "available_case", "pirat", "pirat_t", "pirat_s", "proda_design"}
+# Transductive R comparators whose imputation is cached per data replicate (added in the second
+# revision): Pirat and Pirat-T (Etourneau et al. 2025) and proDA with the tumour/normal design.
+TRANSDUCTIVE_CACHED = {"pirat", "pirat_t", "pirat_s", "proda_design"}
 
 ORIGINAL_METHODS = (list(V2_VARIANTS) + ["v1_reference", "miwae", "notmiwae", "observed_mean",
                     "mindet", "minprob", "qrilc", "dsn", "cognate_ols", "knn", "missforest", "oracle"])
 MAIN_METHODS = (["vae_full", "abl_no_latent", "abl_no_skip", "abl_mar_likelihood", "abl_hinge_penalty",
                  "abl_mlp_fusion", "abl_no_contrastive", "abl_zero_fill",
-                 "selreg", "tobit", "proda", "mindet_r", "minprob_r", "qrilc_r", "dsn", "knn_cog",
+                 "selreg", "tobit", "proda", "pirat_t", "pirat", "mindet_r", "minprob_r", "qrilc_r", "dsn", "knn_cog",
                  "missforest_r", "miwae_cog", "notmiwae_cog", "cognate_ols", "observed_mean", "oracle"])
-SWEEP_METHODS = ["vae_full", "abl_no_latent", "selreg", "proda", "mindet_r", "knn_cog", "notmiwae_cog16",
-                 "cognate_ols", "observed_mean", "oracle"]
+SWEEP_METHODS = ["vae_full", "abl_no_latent", "selreg", "proda", "pirat_t", "mindet_r", "knn_cog",
+                 "notmiwae_cog16", "cognate_ols", "observed_mean", "oracle"]
+ALT_METHODS = ["vae_full", "abl_no_latent", "abl_mar_likelihood", "selreg", "pirat_t", "proda",
+               "mindet_r", "knn_cog", "missforest_r", "notmiwae_cog", "cognate_ols", "observed_mean"]
 PROCAN_METHODS = [m for m in MAIN_METHODS if m != "oracle"]
-DS_METHODS = ["vae_full", "abl_no_latent", "selreg", "proda", "mindet_r", "qrilc_r", "dsn", "knn_cog",
+DS_METHODS = ["vae_full", "abl_no_latent", "selreg", "proda", "proda_design", "pirat_t", "pirat", "mindet_r", "qrilc_r", "dsn", "knn_cog",
               "missforest_r", "notmiwae_cog", "cognate_ols", "observed_mean", "available_case"]
 
 
@@ -137,6 +146,12 @@ def source_for(scenario, replicate, s1_rna=None, cptac_dir=None, procan_dir=None
         cfg = data.CPTACConfig(mask="within" if scenario == "CPTAC" else "intensity",
                                include_normals=scenario.startswith("DS-"))
         src = _cached_cptac(Path(cptac_dir), scenario, cohort, replicate, cfg)
+    elif scenario.startswith("ALT-"):
+        if cptac_dir is None:
+            raise ValueError(f"Scenario {scenario} needs --cptac-dir.")
+        _, cohort, mech = scenario.split("-")
+        cfg = data.CPTACConfig(mask="intensity", mechanism=ALT_MECHANISM[mech])
+        src = _cached_cptac(Path(cptac_dir), scenario, cohort.lower(), replicate, cfg)
     elif scenario == "PROCAN":
         from .natural import load_procan
         if procan_dir is None:
@@ -184,7 +199,7 @@ def protocol_for(scenario, replicate, split_seed, s1_rna=None, cptac_dir=None, p
 
 # ----------------------------------------------------------------------- one job
 
-def fit_predict(P, scenario, method, train_seed, max_epochs=None, smoke=False):
+def fit_predict(P, scenario, method, train_seed, max_epochs=None, smoke=False, context=None):
     """Fit ``method`` on protocol ``P`` and return (test prediction, diagnostics, extras, interval)."""
     import torch
     from . import baselines as B
@@ -247,6 +262,43 @@ def fit_predict(P, scenario, method, train_seed, max_epochs=None, smoke=False):
         fit = B.fit_selection_regression(P, limit_scale=limit_scale_for(scenario), seed=train_seed)
         diag = {"nll": fit["nll"], "slope": float(fit["s"]), "mcar": float(fit["pi"])}
         pred = B.selection_regression_predict(fit, P, te)
+        # predictive intervals of the linear variant (added in the second revision; predictions unchanged)
+        interval = B.selection_regression_interval(fit, P, te, 0.9, seed=train_seed)
+        for lev in (0.5, 0.8, 0.95):
+            extra_intervals[f"level{int(lev * 100)}"] = B.selection_regression_interval(fit, P, te, lev,
+                                                                                          seed=train_seed)
+        va = P.rows("validation")
+        rng_w = np.random.default_rng(train_seed + 104729)
+        withheld = (rng_w.uniform(size=P.observed[va].shape) < 0.2) & P.observed[va]
+        lo_o, hi_o = B.selection_regression_interval(fit, P, va, 0.9, seed=train_seed, condition="observed")
+        x_o = P.protein_input[va][withheld]
+        q_sel = conformal_offset(lo_o[withheld], hi_o[withheld], x_o, 0.9)
+        cov_sel = float(np.mean((x_o >= lo_o[withheld]) & (x_o <= hi_o[withheld])))
+        lo_v, hi_v = B.selection_regression_interval(fit, P, va, 0.9, seed=train_seed)
+        ps = P.pseudo_mask
+        q_ps = conformal_offset(lo_v[ps], hi_v[ps], P.protein_input[va][ps], 0.9)
+        diag.update({"conformal_offset90_selection": q_sel, "withheld_observed_coverage90": cov_sel,
+                     "conformal_offset90_pseudo": q_ps})
+        extra_intervals["conformal"] = (interval[0] - q_sel, interval[1] + q_sel)
+        extra_intervals["pseudo"] = (interval[0] - q_ps, interval[1] + q_ps)
+    elif method in ("pirat", "pirat_t", "pirat_s", "proda_design"):
+        from .rbridge import r_impute
+        ctx = context or {}
+        raw = P.raw_protein_input()
+        extra_files = {}
+        if method == "pirat_t":
+            cog = np.asarray(P.cognate)
+            if np.any(cog < 0):
+                raise ValueError("Pirat-T needs a cognate transcript for every protein.")
+            extra_files["rna"] = np.asarray(ctx["rna_raw"], float)[:, cog]
+        if method == "proda_design":
+            if ctx.get("is_normal") is None:
+                return None
+            extra_files["groups"] = np.asarray(ctx["is_normal"], float)
+        name = {"pirat": "Pirat", "pirat_t": "PiratT", "pirat_s": "PiratS", "proda_design": "proDA_design"}[method]
+        out, info = r_impute(name, raw, seed=train_seed, extra=extra_files, cache=ctx.get("cache"))
+        diag = {"r": info}
+        pred = B._fill(P, te, B._to_std(out[te], P))
     elif method in ("knn", "knn_cog"):
         pcs = B.RNAPCs(P, seed=train_seed)
         va = P.rows("validation")
@@ -299,7 +351,16 @@ def run_job(scenario, replicate, split_seed, method, train_seed, out_root, smoke
         return str(out), "skipped"
     t0 = time.time()
     P = protocol_for(scenario, replicate, split_seed, s1_rna, cptac_dir, procan_dir)
-    res = fit_predict(P, scenario, method, train_seed, max_epochs=15 if smoke else None, smoke=smoke)
+    context = None
+    if method in TRANSDUCTIVE_CACHED:
+        src = source_for(scenario, replicate, s1_rna, cptac_dir, procan_dir)
+        rna_raw = np.asarray(src["rna"], dtype=np.float64)
+        context = {"rna_raw": rna_raw,
+                   "is_normal": (np.asarray(src["is_normal"], float) if src.get("is_normal") is not None
+                                 and scenario.startswith("DS-") else None),
+                   "cache": Path(out_root) / "_rcache" / f"{scenario}_rep{replicate}_{method}.npz"}
+    res = fit_predict(P, scenario, method, train_seed, max_epochs=15 if smoke else None, smoke=smoke,
+                      context=context)
     if res is None:
         return str(out), "not applicable"
     pred, diag, extra, interval, extra_intervals = res
@@ -434,15 +495,19 @@ def methods_for(grid, scenario):
         return PROCAN_METHODS
     if scenario.startswith("DS-"):
         return DS_METHODS
+    if scenario.startswith("ALT-"):
+        return ALT_METHODS
     return MAIN_METHODS
 
 
-def jobs_for(grid, scenarios, methods=None, smoke=False, limit=0):
+def jobs_for(grid, scenarios, methods=None, smoke=False, limit=0, only_splits=None):
     table = ORIGINAL_GRID if grid == "original" else REVISION_GRID
     jobs = []
     for sc in scenarios:
         g = table[sc]
         reps, splits, seeds = g["replicates"], g["splits"], g["train_seeds"]
+        if only_splits:
+            splits = [s for s in splits if s in only_splits] or splits[:1]
         if smoke or limit:
             reps, splits, seeds = reps[:1], splits[:max(1, limit)], seeds[:1]
         for r in reps:
@@ -454,7 +519,7 @@ def jobs_for(grid, scenarios, methods=None, smoke=False, limit=0):
                         continue
                     for t in (seeds if m not in SEEDLESS else seeds[:1]):
                         jobs.append((sc, r, s, m, t))
-    slow = ["missforest_r", "missforest", "miwae_cog", "notmiwae_cog", "v1_reference", "notmiwae",
+    slow = ["pirat_s", "pirat_t", "pirat", "missforest_r", "missforest", "miwae_cog", "notmiwae_cog", "v1_reference", "notmiwae",
             "miwae", "notmiwae_cog16"]
     order = {m: i for i, m in enumerate(slow)}
     jobs.sort(key=lambda j: (order.get(j[3], 99), j[0]))
@@ -483,6 +548,9 @@ def main(argv=None):
                                          "procan_transcriptomics.csv (see tcsimpute.benchmark.natural).")
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--limit", type=int, default=0, help="Run only the first N splits of one replicate (debug).")
+    ap.add_argument("--splits", type=int, nargs="+", default=None,
+                    help="Run only these split seeds (e.g. one split per replicate first, so cached "
+                         "transductive fits are reused by the remaining splits).")
     a = ap.parse_args(argv)
     out = Path(a.out)
     if a.smoke:
@@ -492,13 +560,13 @@ def main(argv=None):
     table = ORIGINAL_GRID if a.grid == "original" else REVISION_GRID
     # Build data caches once, before forking workers.
     for sc in scenarios:
-        if sc in ("CPTAC", "PDAC", "LUAD", "DS-PDAC", "DS-LUAD"):
+        if sc in ("CPTAC", "PDAC", "LUAD", "DS-PDAC", "DS-LUAD") or sc.startswith("ALT-"):
             for r in table[sc]["replicates"]:
                 source_for(sc, r, cptac_dir=a.cptac_dir)
         elif sc == "PROCAN":
             for r in table[sc]["replicates"]:
                 source_for(sc, r, procan_dir=a.procan_dir)
-    jobs = jobs_for(a.grid, scenarios, a.methods, a.smoke, a.limit)
+    jobs = jobs_for(a.grid, scenarios, a.methods, a.smoke, a.limit, a.splits)
     print(f"{len(jobs)} jobs, {a.workers} workers -> {out}", flush=True)
     failures = []
     t0 = time.time()

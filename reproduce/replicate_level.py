@@ -19,7 +19,9 @@ from pathlib import Path
 
 import numpy as np
 
-SCENARIOS = ("SIM", "PDAC", "LUAD", "PROCAN")
+SCENARIOS = ("SIM", "PDAC", "LUAD", "PROCAN",
+             # out-of-family detection masks on CPTAC (Supplementary Section S10); skipped when absent
+             "ALT-PDAC-logit", "ALT-PDAC-sporadic", "ALT-LUAD-logit", "ALT-LUAD-sporadic")
 REFERENCES = ("selreg", "vae_full")
 B = 10_000
 
@@ -61,6 +63,8 @@ def friedman_replicates(res):
     out = {}
     for sc in SCENARIOS:
         methods = sorted(m for s, m in res if s == sc and m != "oracle")
+        if not methods:
+            continue
         reps = sorted(set.intersection(*[{k[0] for k in res[(sc, m)]} for m in methods]))
         X = np.array([[np.mean([v for k, v in res[(sc, m)].items() if k[0] == rp]) for m in methods] for rp in reps])
         stat, p = friedmanchisquare(*X.T)
@@ -86,8 +90,10 @@ def main():
     rng = np.random.default_rng(2026)
     out = {"friedman_replicate_blocks": friedman_replicates(res)}
     for sc in SCENARIOS:
-        out[sc] = {}
         methods = sorted({m for s, m in res if s == sc})
+        if not methods:
+            continue
+        out[sc] = {}
         for ref in REFERENCES:
             if (sc, ref) not in res:
                 continue

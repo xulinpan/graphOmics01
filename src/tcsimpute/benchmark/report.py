@@ -43,6 +43,8 @@ def load(runs, include_smoke=False):
         d = r.get("diagnostics") or {}
         row["active_units"] = d.get("active_units_train")
         row["selected_epoch"] = d.get("selected_epoch")
+        # R fit time (transductive methods cached per data replicate report the original fit time)
+        row["r_seconds"] = (d.get("r") or {}).get("seconds") if isinstance(d.get("r"), dict) else None
         for k, v in (r.get("inference_variants") or {}).items():
             row[f"variant_{k}_rmse"] = v.get("rmse")
         rows.append(row)
@@ -111,6 +113,9 @@ def summarize(rows):
         res = {"methods": {}, "ranks": rank_tests(by_method)}
         for m, rs in sorted(by_method.items()):
             entry = {"n": len(rs), "runtime_median_s": float(np.median([r["runtime"] for r in rs]))}
+            rsec = [r["r_seconds"] for r in rs if r.get("r_seconds") is not None]
+            if rsec:
+                entry["r_fit_seconds_median"] = float(np.median(rsec))
             for k in METRICS + ("active_units", "selected_epoch", "variant_single_draw_rmse", "variant_mc50_rmse"):
                 mu, sd = _mean_sd(r.get(k) for r in rs)
                 if mu is not None:

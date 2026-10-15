@@ -108,15 +108,15 @@ is scored against the mean of the cell line's other runs.
 
 | Setting | VAE | Linear | Best established comparator | Bayes oracle |
 |---|---|---|---|---|
-| Simulator | 0.990 | 0.950 | MinDet 1.298 | 0.689 |
-| CPTAC PDAC, imposed mask | 1.256 | 1.268 | MinDet 1.542 | n/a |
-| CPTAC LUAD, imposed mask | 1.002 | 1.002 | MinDet 1.334 | n/a |
+| Simulator | 0.990 | 0.950 | Pirat-T 1.104 | 0.689 |
+| CPTAC PDAC, imposed mask | 1.256 | 1.268 | Pirat-T 1.518 | n/a |
+| CPTAC LUAD, imposed mask | 1.002 | 1.002 | Pirat-T 1.080 | n/a |
 | ProCan DIA, natural missingness | 1.146 | 1.149 | missForest 0.998 | n/a |
+| CPTAC PDAC / LUAD, per-protein logistic mask | 1.422 / 1.179 | 1.602 / 1.393 | Pirat-T 1.774 / 1.397 | n/a |
+| CPTAC PDAC / LUAD, censoring plus protein-specific random loss | 1.465 / 1.309 | 1.451 / 1.292 | Pirat-T 1.445 / 1.240 | n/a |
 
 The ablations attribute the gains to the selection likelihood and the cognate-transcript term.
-Transformer fusion and the contrastive term did not measurably help. Nominal 90% intervals covered
-73–84% of hidden values (77–86% after the built-in conformal recalibration), so treat them as
-approximate: they are not reliably calibrated for missing values, because the recalibration uses observed
+Transformer fusion and the contrastive term did not measurably help. Pirat-T was run on protein-level data, one protein per group. Nominal 90% intervals covered 73–84% of hidden values (77–87% after the built-in conformal recalibration), so treat them as a diagnostic (`predict_interval` warns): they are not reliably calibrated for missing values, because the recalibration uses observed
 values, which are not exchangeable with missing ones when missingness depends on abundance. On ProCan, transcript-aware imputers that assume missingness at random were more
 accurate, because many DIA misses are sporadic rather than below a detection limit.
 
@@ -132,11 +132,12 @@ python reproduce/fetch_cptac_cohort.py --cohort Luad --out data_cptac
 python reproduce/fetch_procan.py data_procan
 python reproduce/export_procan_rna.py            # needs h5py (in the [reproduce] extra)
 
-# 2. The revision grid: 4 primary, 13 sweep and 2 downstream scenarios, 3,084 runs
-export TCSIMPUTE_RSCRIPT=/path/to/Rscript         # for proDA, imputeLCMD and missForest
+# 2. The revision grid: 4 primary, 13 sweep, 4 out-of-family mask and 2 downstream scenarios, 3,782 runs
+export TCSIMPUTE_RSCRIPT=/path/to/Rscript         # for proDA, imputeLCMD, missForest and Pirat
 tcsimpute-benchmark --grid revision --out runs_revision --workers 14 \
     --cptac-dir data_cptac --procan-dir data_procan \
-    --scenarios SIM PDAC LUAD PROCAN DS-PDAC DS-LUAD sweeps
+    --scenarios SIM PDAC LUAD PROCAN DS-PDAC DS-LUAD sweeps \
+      ALT-PDAC-logit ALT-PDAC-sporadic ALT-LUAD-logit ALT-LUAD-sporadic
 tcsimpute-scaling --out runs_revision/scaling.json
 
 # 3. Summary with paired comparisons, Friedman/Nemenyi tests, and the extra analyses
@@ -169,7 +170,7 @@ truth is read once per run.
 | `tcsimpute.benchmark.natural` | ProCan natural-missingness benchmark with replicate-based truth |
 | `tcsimpute.benchmark.downstream` | Differential-abundance and co-abundance metrics |
 | `tcsimpute.benchmark.baselines` | Linear selection regression, Tobit, down-shifted normal, KNN, MIWAE, not-MIWAE, controls |
-| `tcsimpute.benchmark.rbridge` | proDA, imputeLCMD and missForest through their R packages |
+| `tcsimpute.benchmark.rbridge` | proDA, imputeLCMD, missForest and Pirat/Pirat-T through their R packages |
 | `tcsimpute.benchmark.runner` | The run grids (`tcsimpute-benchmark`) |
 | `tcsimpute.benchmark.report` | Paired comparisons and rank tests (`tcsimpute-report`) |
 | `tcsimpute.benchmark.scaling` | Runtime scaling (`tcsimpute-scaling`) |
@@ -189,8 +190,8 @@ the rank tests.
 ## Citation
 
 See `CITATION.cff`. Until the paper is published, please cite the software archive:
-Pan X, Lv J, Wang C. tcsimpute (version 0.2.1). Zenodo. https://doi.org/10.5281/zenodo.23288086
-(https://doi.org/10.5281/zenodo.23280803 covers all versions and resolves to the latest).
+Pan X, Lv J, Wang C. tcsimpute (version 0.2.2). Zenodo. https://doi.org/10.5281/zenodo.23280803
+(this DOI covers all versions and resolves to the latest; version 0.2.1 is https://doi.org/10.5281/zenodo.23288086).
 
 ## License
 

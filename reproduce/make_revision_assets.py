@@ -25,7 +25,8 @@ LABEL = {
     "abl_mar_likelihood": "VAE, MAR likelihood", "abl_hinge_penalty": "VAE, hinge penalty",
     "abl_mlp_fusion": "VAE, MLP fusion", "abl_no_contrastive": "VAE $-$ contrastive term",
     "abl_zero_fill": "VAE $-$ mask input",
-    "tobit": "Tobit regression", "proda": "proDA", "notmiwae_cog": "not-MIWAE", "notmiwae_cog16": "not-MIWAE",
+    "tobit": "Tobit regression", "proda": "proDA", "proda_design": "proDA (condition design)",
+    "pirat_t": "Pirat-T", "pirat": "Pirat", "notmiwae_cog": "not-MIWAE", "notmiwae_cog16": "not-MIWAE",
     "miwae_cog": "MIWAE", "missforest_r": "missForest", "knn_cog": "KNN", "mindet_r": "MinDet",
     "minprob_r": "MinProb", "qrilc_r": "QRILC", "dsn": "Down-shifted normal",
     "cognate_ols": "Cognate OLS", "observed_mean": "Observed mean", "oracle": "Bayes oracle",
@@ -40,8 +41,8 @@ MARKERS = {"tcs": "o", "abl": "s", "cmp": "^", "ctl": "D"}
 GROUP_NAME = {"tcs": "tcsimpute", "abl": "Ablations of the VAE", "cmp": "Established imputers",
               "ctl": "Controls"}
 
-MAIN_ORDER = ["vae_full", "selreg", "abl_no_latent", "abl_no_skip", "abl_mar_likelihood", "abl_hinge_penalty",
-              "abl_mlp_fusion", "abl_no_contrastive", "abl_zero_fill", "tobit", "proda", "notmiwae_cog",
+MAIN_ORDER = ["selreg", "vae_full", "abl_no_latent", "abl_no_skip", "abl_mar_likelihood", "abl_hinge_penalty",
+              "abl_mlp_fusion", "abl_no_contrastive", "abl_zero_fill", "tobit", "pirat_t", "pirat", "proda", "notmiwae_cog",
               "miwae_cog", "missforest_r", "knn_cog", "mindet_r", "minprob_r", "qrilc_r", "dsn",
               "cognate_ols", "observed_mean", "oracle"]
 FIG2_ORDER = [m for m in MAIN_ORDER if not m.startswith("abl_")]
@@ -57,8 +58,8 @@ SWEEP_ROWS = [("SWEEP-probit", "Probit (matched)"), ("SWEEP-logistic", "Logistic
               ("SWEEP-t3", "Student-t noise"), ("SWEEP-miss10", "10% missing"),
               ("SWEEP-miss50", "50% missing"), ("SWEEP-n100", "n = 100"), ("SWEEP-n400", "n = 400"),
               ("SWEEP-weak", "Weak RNA coupling"), ("SWEEP-strong", "Strong RNA coupling")]
-SWEEP_COLS = ["vae_full", "selreg", "proda", "notmiwae_cog16", "knn_cog", "mindet_r", "cognate_ols", "observed_mean"]
-DS_ORDER = ["vae_full", "selreg", "abl_no_latent", "proda", "notmiwae_cog", "missforest_r", "knn_cog",
+SWEEP_COLS = ["selreg", "vae_full", "abl_no_latent", "pirat_t", "proda", "notmiwae_cog16", "knn_cog", "mindet_r", "cognate_ols", "observed_mean"]
+DS_ORDER = ["selreg", "vae_full", "abl_no_latent", "pirat_t", "pirat", "proda", "proda_design", "notmiwae_cog", "missforest_r", "knn_cog",
             "mindet_r", "qrilc_r", "dsn", "cognate_ols", "observed_mean", "available_case"]
 
 
@@ -73,6 +74,12 @@ def f3(x, signed=False):
     if s in ("+0.000", "-0.000"):
         s = "0.000"
     return s.replace("-", "$-$")
+
+
+def f2(x):
+    """Two decimals, signed, LaTeX minus (coarse intervals)."""
+    t = f"{x:+.2f}"
+    return ("$-$" + t[1:]) if t.startswith("-") else t
 
 
 def setup_mpl():
@@ -119,7 +126,7 @@ def fig_model(out):
     box(44, 52, 40, 28, "Encoder (VAE variant)", "tokens for $r_i$ and $[x_i\\odot S_i,\\,S_i]$\none Transformer layer\n$q(z_i)$, sample offset $\\delta_i$", blue, blue_f)
     box(92, 52, 40, 28, "Protein mean", "VAE: $\\mu_{ij}=f_j(z_i)+\\beta_j r_{i,g(j)}$\nlinear: $\\mu_{ij}=\\alpha_j+\\beta_j r_{i,g(j)}$\n$\\qquad\\qquad+\\gamma_j^{\\top}\\mathrm{PC}(r_i)$", blue, blue_f)
     box(140, 52, 36, 28, "Detection model", "$P(S_{ij}{=}1\\mid x)=$\n$(1-\\pi)\\,\\Phi((x-\\tau_{ij})/s)$\n$\\tau_{ij}=t_j+\\delta_i\\rho_j$\nshrunken $t_j$, MCAR rate $\\pi$", org, org_f)
-    box(44, 12, 62, 27, "Likelihood (observed values only)",
+    box(44, 12, 62, 27, "Likelihood (fitted without hidden values)",
         "observed: $\\log\\mathcal{N}(x;\\mu,\\sigma^2)+\\log(1-\\pi)+\\log\\Phi((x-\\tau)/s)$\n"
         "missing: $\\log[\\pi+(1-\\pi)\\,\\Phi(a)]$\n"
         "$a=(\\tau-\\mu)/\\sqrt{\\sigma^2+s^2}$\n"
@@ -127,7 +134,7 @@ def fig_model(out):
     box(114, 12, 62, 27, "Imputation and intervals",
         "$\\mathrm{E}[x\\mid S{=}0]=w\\mu+(1-w)\\,(\\mu-\\kappa\\,\\phi(a)/\\Phi(a))$\n"
         "$\\kappa=\\sigma^2/\\sqrt{\\sigma^2+s^2}$, $w$ = posterior MCAR probability\n"
-        "90% intervals: weighted predictive draws\n+ conformal offset from withheld observed values", blue, blue_f)
+        "approximate 90% intervals: weighted predictive\ndraws (+ optional conformal offset)", blue, blue_f)
     arrow(36, 66, 44, 66)
     arrow(84, 66, 92, 66)
     arrow(132, 66, 140, 66)
@@ -152,7 +159,7 @@ def fig_benchmark(summ, out):
     ypos = {m: i for i, m in enumerate(FIG2_ORDER)}
     for ax, (sc, title) in zip(axes, scs):
         ms = summ[sc]["methods"]
-        ref = ms.get("vae_full", {}).get("rmse")
+        ref = ms.get("selreg", {}).get("rmse")
         if ref is not None:
             ax.axvline(ref, color=COLORS["tcs"], lw=0.8, ls=(0, (3, 2)), zorder=0)
         vals = [ms[m]["rmse"] for m in FIG2_ORDER if ms.get(m, {}).get("rmse") is not None]
@@ -220,7 +227,7 @@ def fig_robustness(summ, out):
                 ax.text(j, i, f"{R[i, j]:.2f}", ha="center", va="center", fontsize=6.2,
                         color="white" if dark else "#0b0b0b", fontweight="bold" if excess[i, j] == 0 else "normal")
     ax.set_xticks(range(len(SWEEP_COLS)))
-    wrap = {"vae_full": "tcsimpute\n(VAE)", "selreg": "tcsimpute\n(linear)", "cognate_ols": "Cognate\nOLS",
+    wrap = {"vae_full": "tcsimpute\n(VAE)", "selreg": "tcsimpute\n(linear)", "abl_no_latent": "VAE -\nlatent var.", "cognate_ols": "Cognate\nOLS",
             "observed_mean": "Observed\nmean"}
     ax.set_xticklabels([wrap.get(m, PLAIN[m]) for m in SWEEP_COLS], rotation=0, fontsize=6.5)
     ax.xaxis.tick_top()
@@ -247,9 +254,9 @@ def fig_calib_downstream(summ, scaling, out):
     plt = setup_mpl()
     from matplotlib.ticker import FixedLocator, FuncFormatter, MaxNLocator, NullLocator
     fig = plt.figure(figsize=(178 / 25.4, 5.0))
-    gs = fig.add_gridspec(2, 3, width_ratios=[1.35, 1, 1], height_ratios=[1, 1.15], hspace=0.55, wspace=0.42)
-    axA, axD = fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1:])
-    axB, axC = fig.add_subplot(gs[1, 0:2]), fig.add_subplot(gs[1, 2])
+    gs = fig.add_gridspec(2, 3, width_ratios=[1.35, 1, 1], height_ratios=[1.15, 1], hspace=0.62, wspace=0.42)
+    axB, axC = fig.add_subplot(gs[0, 0:2]), fig.add_subplot(gs[0, 2])
+    axA, axD = fig.add_subplot(gs[1, 0]), fig.add_subplot(gs[1, 1:])
     cols = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]
     marks = ["o", "s", "^", "D"]
     # A calibration
@@ -265,9 +272,13 @@ def fig_calib_downstream(summ, scaling, out):
         ax.plot([0.5, 0.8, 0.9, 0.95], emp, color=c, lw=1.2, marker=mk, ms=3.5, label=title.split("\n")[0])
         if v.get("coverage_conformal") is not None:
             ax.plot([0.9], [v["coverage_conformal"]], marker=mk, ms=6, mfc="white", mec=c, mew=1.1, ls="")
+        w = summ.get(sc, {}).get("methods", {}).get("selreg") or {}
+        emp_l = [w.get(k) for k in ("coverage_level50", "coverage_level80", "coverage90", "coverage_level95")]
+        if None not in emp_l:
+            ax.plot([0.5, 0.8, 0.9, 0.95], emp_l, color=c, lw=0.9, ls=(0, (2, 1.5)), marker=mk, ms=2.6, mfc="white")
     ax.set_xlabel("Nominal coverage")
     ax.set_ylabel("Empirical coverage\n(hidden test entries)")
-    ax.legend(fontsize=6, loc="upper left", handlelength=1.4)
+    ax.legend(fontsize=6, loc="upper left", handlelength=1.4, title="solid: VAE; dashed: linear", title_fontsize=5.5)
     ax.set_xlim(0.45, 1.0)
     ax.set_ylim(0.3, 1.0)
     ax.grid(color="#e4e3dd", lw=0.5)
@@ -321,9 +332,9 @@ def fig_calib_downstream(summ, scaling, out):
         ax.set_axisbelow(True)
         ax.set_xlabel(xlabel)
     axB.legend(fontsize=6, loc="lower left", bbox_to_anchor=(0.0, 1.0), ncol=2, handlelength=1)
-    for ax, letter in ((axA, "A"), (axD, "B"), (axB, "C"), (axC, "D")):
+    for ax, letter in ((axB, "A"), (axC, "B"), (axA, "C"), (axD, "D")):
         ax.text(-0.02, 1.06, letter, transform=ax.transAxes, fontsize=9, fontweight="bold", ha="right")
-    fig.subplots_adjust(left=0.16, right=0.985, top=0.95, bottom=0.09)
+    fig.subplots_adjust(left=0.19, right=0.985, top=0.93, bottom=0.08)
     save(fig, out, "fig4_calib_downstream")
     plt.close(fig)
 
@@ -335,13 +346,13 @@ def table1(summ):
     ranks = {s: (summ[s].get("ranks") or {}).get("mean_ranks", {}) for s, _ in scs}
     L = ["\\begin{table*}[t]", "\\centering", "\\footnotesize", "\\setlength{\\tabcolsep}{2.6pt}",
          "\\caption{Hidden-entry test RMSE (mean (SD) over grid points; training-standardized units) and mean "
-         "Friedman rank across methods (lower is better; oracle excluded). Grid points: 20 per scenario "
+         "rank across methods (lower is better; oracle excluded). Grid points: 20 per scenario "
          "(simulator: 5 data replicates $\\times$ 4 splits; CPTAC: 4 masks $\\times$ 5 splits; ProCan: 4 primary-run "
          "choices $\\times$ 5 splits). KNN, missForest, MIWAE and not-MIWAE receive RNA principal components and each "
-         "protein's cognate transcript. The CPTAC scenarios are semi-synthetic: a detection mask was imposed on complete "
+         "protein's cognate transcript; Pirat-T receives each protein's cognate transcript, Pirat none. The CPTAC scenarios are semi-synthetic: a detection mask was imposed on complete "
          "TMT ratios. ProCan has natural missingness and is scored only on missing entries quantified in another run "
          "of the same cell line. Mean ranks are descriptive, because grid points sharing a data replicate or split are "
-         "not independent. Paired differences with replicate-level CIs and win counts, and within-protein correlations, "
+         "not independent. Paired differences with replicate-level win counts and ranges, and within-protein correlations, "
          "are in Supplementary Tables S1--S4 and S18.}",
          "\\label{tab:main}",
          "\\begin{tabular}{l" + "rr" * len(scs) + "}", "\\toprule",
@@ -370,20 +381,21 @@ def table1(summ):
 
 
 def table2(summ):
-    keys = [("ds_de_t_spearman", "$t$ Spearman"), ("ds_de_precision", "Precision"), ("ds_de_recall", "Recall"),
-            ("ds_coabundance_mae", "Co-ab.\\ error")]
+    keys = [("rmse", "RMSE"), ("ds_de_t_spearman", "$t$ corr."), ("ds_de_precision", "Prec."),
+            ("ds_de_recall", "Recall"), ("ds_coabundance_mae", "Co-ab.")]
     scs = [("DS-PDAC", "PDAC"), ("DS-LUAD", "LUAD")]
-    L = ["\\begin{table}[t]", "\\centering", "\\footnotesize", "\\setlength{\\tabcolsep}{2.6pt}",
+    L = ["\\begin{table*}[t]", "\\centering", "\\scriptsize", "\\setlength{\\tabcolsep}{2.4pt}",
          "\\caption{Semi-synthetic downstream analyses: CPTAC tumours and normal adjacent tissues with an imposed "
-         "intensity-scale detection mask (mean over 4 masks): agreement with complete-data statistics, not a test of "
-         "error control (see Supplementary Table S15). Tumour-versus-normal Welch tests on imputed data are compared with the same tests "
-         "on the complete data: Spearman correlation of $t$ statistics, and precision and recall of the BH 5\\% calls. "
-         "Co-abundance error: mean absolute difference between imputed and complete protein--protein correlations "
+         "intensity-scale detection mask (mean over 4 masks): imputation error and agreement with complete-data "
+         "statistics, not a test of error control (see Supplementary Table S15). RMSE: all hidden entries of all "
+         "samples (every sample was imputed; standardized units; Supplementary Table S23). Tumour-versus-normal Welch tests on imputed data are compared with the same tests "
+         "on the complete data: Spearman correlation of $t$ statistics ($t$ corr.), and precision (Prec.) and recall of the BH 5\\% calls. "
+         "Co-abundance error (Co-ab.): mean absolute difference between imputed and complete protein--protein correlations "
          "(proteins with $\\ge$10\\% missing). No imputation: tests and correlations on observed values only.}",
          "\\label{tab:downstream}",
-         "\\begin{tabular}{l" + "rrrr" * len(scs) + "}", "\\toprule",
-         " & " + " & ".join(f"\\multicolumn{{4}}{{c}}{{{t}}}" for _, t in scs) + " \\\\",
-         "\\cmidrule(lr){2-5}\\cmidrule(lr){6-9}",
+         "\\begin{tabular}{l" + "rrrrr" * len(scs) + "}", "\\toprule",
+         " & " + " & ".join(f"\\multicolumn{{5}}{{c}}{{{t}}}" for _, t in scs) + " \\\\",
+         "\\cmidrule(lr){2-6}\\cmidrule(lr){7-11}",
          "Method & " + " & ".join(" & ".join(k[1] for k in keys) for _ in scs) + " \\\\", "\\midrule"]
     for m in DS_ORDER:
         if not any(m in summ.get(s, {}).get("methods", {}) for s, _ in scs):
@@ -393,37 +405,74 @@ def table2(summ):
             v = summ.get(s, {}).get("methods", {}).get(m, {})
             cells += [f3(v.get(k)) for k, _ in keys]
         L.append(" & ".join([LABEL[m]] + cells) + " \\\\")
+    L += ["\\bottomrule", "\\end{tabular}", "\\end{table*}"]
+    return "\n".join(L) + "\n"
+
+
+def table_ds_accuracy(summ):
+    """Imputation accuracy in the downstream scenarios (Supplementary Table S23)."""
+    scs = [("DS-PDAC", "PDAC (145 tumours, 36 normals)"), ("DS-LUAD", "LUAD (111 tumours, 102 normals)")]
+    L = ["\\begin{table}[htbp]", "\\centering", "\\scriptsize", "\\setlength{\\tabcolsep}{2.6pt}",
+         "\\caption{Imputation accuracy in the semi-synthetic downstream scenarios (CPTAC tumours and normal adjacent "
+         "tissues; 4 imposed masks; every sample imputed after fitting on observed values with an 80/20 train/validation "
+         "split). RMSE (SD over masks), bias and mean within-protein correlation $r_w$ over all hidden entries "
+         "(standardized units). $\\Delta$: mean RMSE difference from tcsimpute (linear) (positive = linear variant "
+         "better); Masks: masks in which the linear variant had the lower RMSE.}",
+         "\\label{tab:dsacc}", "\\begin{tabular}{lrrrrrrrrrr}", "\\toprule",
+         " & " + " & ".join(f"\\multicolumn{{5}}{{c}}{{{t}}}" for _, t in scs) + " \\\\",
+         "\\cmidrule(lr){2-6}\\cmidrule(lr){7-11}",
+         "Method & " + " & ".join("RMSE (SD) & Bias & $r_w$ & $\\Delta$ & Masks" for _ in scs) + " \\\\", "\\midrule"]
+    for m in DS_ORDER:
+        if m == "available_case":
+            continue
+        cells, seen = [], False
+        for s, _ in scs:
+            v = summ.get(s, {}).get("methods", {}).get(m)
+            if not v or v.get("rmse") is None:
+                cells += ["--"] * 5
+                continue
+            seen = True
+            q = v.get("vs_selreg")
+            if m == "vae_full":
+                q = {"mean_diff": v["vs_selreg"]["mean_diff"], "wins_reference": v["vs_selreg"]["wins_reference"],
+                     "n": v["vs_selreg"]["n"]}
+            d = "--" if m == "selreg" or q is None else f3(q["mean_diff"], True)
+            w = "--" if m == "selreg" or q is None else f"{q['wins_reference']}/{q['n']}"
+            cells += [f"{f3(v['rmse'])} ({f3(v['rmse_sd'])})", f3(v.get("bias"), True), f3(v.get("within_feature_r")), d, w]
+        if seen:
+            L.append(" & ".join([LABEL[m]] + cells) + " \\\\")
     L += ["\\bottomrule", "\\end{tabular}", "\\end{table}"]
     return "\n".join(L) + "\n"
 
 
 def table_full(summ, sc, title, label, rl=None):
     ms = summ[sc]["methods"]
-    rv = (rl or {}).get(sc, {}).get("vae_full", {})
+    rv = (rl or {}).get(sc, {}).get("selreg", {})
     L = ["\\begin{table}[htbp]", "\\centering", "\\scriptsize", "\\setlength{\\tabcolsep}{2.6pt}",
          f"\\caption{{{title}: all methods. RMSE (SD) over grid points; $\\Delta$: mean paired RMSE difference from "
-         "tcsimpute (VAE) (positive = worse than tcsimpute) with a 95\\% two-stage cluster bootstrap CI over data "
-         "replicates; Reps: data replicates in which tcsimpute (VAE) had the lower mean RMSE (grid points in brackets); "
-         "$d_z$: Cohen's effect size of the 20 paired differences, which are not independent (descriptive); $r_w$: mean "
+         "tcsimpute (linear), the default (positive = worse than the linear variant), with an approximate 95\\% two-stage "
+         "cluster bootstrap interval over data replicates (4--5 clusters; coarse); Reps: data replicates in which the linear "
+         "variant had the lower mean RMSE (grid points in brackets); Supplementary Table S18 gives the replicate ranges; "
+         "$r_w$: mean "
          "within-protein correlation of imputed and true hidden values; Cov.: empirical coverage of nominal 90\\% "
          f"intervals (after conformal adjustment in brackets).}}", f"\\label{{{label}}}",
-         "\\begin{tabular}{lrrrrrrr}", "\\toprule",
-         "Method & RMSE (SD) & $\\Delta$ [95\\% CI] & Reps & $d_z$ & $r_w$ & Bias & Cov. \\\\", "\\midrule"]
+         "\\begin{tabular}{lrrrrrr}", "\\toprule",
+         "Method & RMSE (SD) & $\\Delta$ [95\\% CI] & Reps & $r_w$ & Bias & Cov. \\\\", "\\midrule"]
     for m in MAIN_ORDER:
         v = ms.get(m)
         if v is None or v.get("rmse") is None:
             continue
-        p = v.get("vs_vae_full")
-        if m == "vae_full" or p is None:
+        p = v.get("vs_selreg")
+        if m == "selreg" or p is None:
             dcell, wins, dz = "--", "--", "--"
         else:
             q = rv.get(m)
             if q is not None:
-                dcell = f"{f3(q['mean_diff'], True)} [{f3(q['cluster_ci95'][0], True)}, {f3(q['cluster_ci95'][1], True)}]"
+                dcell = f"{f3(q['mean_diff'], True)} [{f2(q['cluster_ci95'][0])}, {f2(q['cluster_ci95'][1])}]"
                 wins = f"{q['replicates_reference_better']}/{q['n_replicates']} ({q['points_reference_better']})"
             else:
-                dcell = f"{f3(p['mean_diff'], True)} [{f3(p['ci95'][0], True)}, {f3(p['ci95'][1], True)}]"
-                wins = f"{p['wins_reference']}/{p['n']}"
+                dcell = f"{f3(p['mean_diff'], True)} [{f2(p['ci95'][0])}, {f2(p['ci95'][1])}]"
+                wins = f"-- ({p['wins_reference']})"
             dz = "--" if p.get("cohens_dz") is None else f"{p['cohens_dz']:.1f}".replace("-", "$-$")
         cov = "--"
         if v.get("coverage90") is not None:
@@ -431,18 +480,8 @@ def table_full(summ, sc, title, label, rl=None):
             if v.get("coverage_conformal") is not None:
                 cov += f" [{v['coverage_conformal']:.2f}]"
         L.append(" & ".join([PLAIN[m].replace("-", "$-$") if m.startswith("abl_") else LABEL[m],
-                             f"{f3(v['rmse'])} ({f3(v['rmse_sd'])})", dcell, wins, dz,
+                             f"{f3(v['rmse'])} ({f3(v['rmse_sd'])})", dcell, wins,
                              f3(v.get("within_feature_r")), f3(v.get("bias"), True), cov]) + " \\\\")
-    rk = summ[sc].get("ranks")
-    if rk:
-        L.append("\\midrule")
-        fr = (rl or {}).get("friedman_replicate_blocks", {}).get(sc)
-        txt = (f"Descriptive rank statistics. Friedman test with data replicates as blocks (RMSE averaged over splits): "
-               f"$\\chi^2$ = {fr['chi2']:.1f} ({fr['n_methods']} methods, {fr['n_blocks']} replicates), $P$ = {fr['p']:.1e}, "
-               f"Kendall's $W$ = {fr['kendall_w']:.2f}. ") if fr else ""
-        L.append(f"\\multicolumn{{8}}{{p{{0.95\\linewidth}}}}{{{txt}With the {rk['n_points']} dependent grid points as blocks: "
-                 f"$\\chi^2$ = {rk['friedman_chi2']:.1f}, " + ("$P<10^{-15}$" if rk['friedman_p'] < 1e-15 else f"$P$ = {rk['friedman_p']:.1e}") + "; Nemenyi critical difference of mean ranks "
-                 f"= {rk['nemenyi_cd']:.2f}.}} \\\\".replace("e-", "e$-$"))
     L += ["\\bottomrule", "\\end{tabular}", "\\end{table}"]
     return "\n".join(L) + "\n"
 
@@ -457,12 +496,11 @@ def table_replevel(rl):
     g = lambda v: f3(v, True).replace("+", "")
     L = ["\\begin{table}[htbp]", "\\centering", "\\scriptsize", "\\setlength{\\tabcolsep}{3pt}",
          "\\caption{Paired RMSE differences against tcsimpute (linear) at the level of data replicates. $\\Delta$: mean "
-         "difference over grid points (method minus linear variant; positive = linear variant better) with a 95\\% "
-         "two-stage cluster bootstrap CI (data replicates resampled with replacement, then splits within each replicate; "
-         "10{,}000 resamples). Reps: data replicates in which the linear variant had the lower mean RMSE. Range: smallest "
-         "and largest replicate mean of the difference. Data replicates: 5 simulated data sets; 4 imposed masks on the "
-         "same CPTAC cohort; 4 primary-run choices on the same ProCan cell lines. With 4--5 clusters the intervals are "
-         "approximate and probably too narrow; the replicate counts and ranges are the more robust summaries.}",
+         "difference over grid points (method minus linear variant; positive = linear variant better). Reps: data replicates "
+         "in which the linear variant had the lower mean RMSE. Range: smallest and largest replicate mean of the difference. "
+         "Data replicates: 5 independently simulated data sets; 4 imposed masks on the same CPTAC cohort; 4 primary-run "
+         "choices on the same ProCan cell lines (CPTAC and ProCan replicates share samples). Cluster-bootstrap intervals "
+         "are in Tables S1--S4.}",
          "\\label{tab:replevel}",
          "\\begin{tabular}{lrrrrrr}", "\\toprule"]
     for k in range(0, len(scs), 2):
@@ -471,7 +509,7 @@ def table_replevel(rl):
             L.append("\\midrule")
         L.append(" & " + " & ".join(f"\\multicolumn{{3}}{{c}}{{{dict(MAIN_SC)[s].replace(chr(10), ' ')}}}" for s in pair) + " \\\\")
         L.append("".join(f"\\cmidrule(lr){{{2 + 3 * i}-{4 + 3 * i}}}" for i in range(len(pair))))
-        L.append("Method & " + " & ".join("$\\Delta$ [95\\% CI] & Reps & Range" for _ in pair) + " \\\\")
+        L.append("Method & " + " & ".join("$\\Delta$ & Reps & Range" for _ in pair) + " \\\\")
         L.append("\\midrule")
         for m in order:
             if not any(m in rl[s].get("selreg", {}) for s in pair):
@@ -482,7 +520,7 @@ def table_replevel(rl):
                 if q is None:
                     cells += ["--", "--", "--"]
                     continue
-                cells += [f"{g(q['mean_diff'])} [{g(q['cluster_ci95'][0])}, {g(q['cluster_ci95'][1])}]",
+                cells += [f"{g(q['mean_diff'])}",
                           f"{q['replicates_reference_better']}/{q['n_replicates']}",
                           f"{g(q['replicate_min'])} to {g(q['replicate_max'])}"]
             L.append(" & ".join([LABEL[m]] + cells) + " \\\\")
@@ -492,21 +530,75 @@ def table_replevel(rl):
 
 def table_sweeps(summ):
     rows, R, O = sweep_matrix(summ)
-    L = ["\\begin{table}[htbp]", "\\centering", "\\scriptsize", "\\setlength{\\tabcolsep}{2.6pt}",
-         "\\caption{Misspecification and sensitivity sweeps (S2 simulator variants; 10 data replicates each; one split). "
-         "Mean hidden-entry test RMSE; the best method in each row is in bold. The Bayes oracle is available when the "
+    L = ["\\begin{table}[htbp]", "\\centering", "\\scriptsize", "\\setlength{\\tabcolsep}{1.7pt}",
+         "\\caption{Misspecification and sensitivity sweeps (simulator variants of Section S1; 10 data replicates each; one split). "
+         "The sweeps ran the methods shown, not the full comparator set of Tables S1--S4. "
+         "Mean hidden-entry test RMSE; the best method in each row, and any within 0.005 of it (treated as tied), is in bold. The Bayes oracle is available when the "
          "generating detection and noise models give a closed form or quadrature. Rows above the rule change the "
          "detection or noise model; rows below change the missing fraction, sample size or RNA--protein coupling.}",
          "\\label{tab:sweeps}",
          "\\begin{tabular}{l" + "r" * (len(SWEEP_COLS) + 1) + "}", "\\toprule",
-         "Condition & " + " & ".join("\\shortstack[r]{" + PLAIN[m].replace(" ", "\\\\") + "}" for m in SWEEP_COLS)
+         "Condition & " + " & ".join("\\shortstack[r]{" + ("VAE $-$\\\\latent" if m == "abl_no_latent" else PLAIN[m].replace(" ", "\\\\")) + "}" for m in SWEEP_COLS)
          + " & Oracle \\\\", "\\midrule"]
     for i, ((sc, lab), r, o) in enumerate(zip(rows, R, O)):
         best = np.nanmin(r)
-        cells = [("\\textbf{%s}" % f3(x)) if np.isfinite(x) and x == best else f3(x) for x in r]
-        L.append(" & ".join([lab] + cells + [f3(o) if np.isfinite(o) else "--"]) + " \\\\")
+        cells = [("\\textbf{%s}" % f3(x)) if np.isfinite(x) and x <= best + 0.005 else f3(x) for x in r]
+        L.append(" & ".join([lab.replace("%", "\\%")] + cells + [f3(o) if np.isfinite(o) else "--"]) + " \\\\")
         if sc == "SWEEP-t3":
             L.append("\\midrule")
+    L += ["\\bottomrule", "\\end{tabular}", "\\end{table}"]
+    return "\n".join(L) + "\n"
+
+ALT_SC = [("ALT-PDAC-logit", "PDAC, logistic"), ("ALT-PDAC-sporadic", "PDAC, sporadic"),
+          ("ALT-LUAD-logit", "LUAD, logistic"), ("ALT-LUAD-sporadic", "LUAD, sporadic")]
+ALT_ORDER = ["selreg", "vae_full", "abl_no_latent", "abl_mar_likelihood", "pirat_t", "proda", "notmiwae_cog",
+             "missforest_r", "knn_cog", "mindet_r", "cognate_ols", "observed_mean"]
+
+
+def table_alt(summ, rl):
+    """Out-of-family detection masks on CPTAC (Supplementary Table S24)."""
+    scs = [(s, t) for s, t in ALT_SC if s in summ]
+    if not scs:
+        return "% no ALT scenarios in summary\n"
+    rl = rl or {}
+    g = lambda v: f3(v, True).replace("+", "")
+    L = ["\\begin{table}[htbp]", "\\centering", "\\scriptsize", "\\setlength{\\tabcolsep}{3pt}",
+         "\\caption{Imposed detection masks outside the model's family (CPTAC tumours; 4 masks $\\times$ 2 splits per "
+         "scenario; Section~S13). Logistic: per-protein logistic detection curves whose limits and slopes vary between "
+         "proteins, no sample offsets, 2\\% missingness completely at random. Sporadic: the probit mask with sample "
+         "offsets, in which missingness completely at random is replaced by protein-specific random loss (fraction drawn "
+         "from Beta(1,\\,4) for each protein). Hidden-entry test RMSE (standardized units); $\\Delta$: mean paired "
+         "difference from tcsimpute (linear), the default (positive = linear variant better); Reps: masks in which the "
+         "linear variant had the lower mean RMSE. The lowest RMSE in each column, and any within 0.005 of it, is in bold.}",
+         "\\label{tab:alt}",
+         "\\begin{tabular}{lrrrrrr}", "\\toprule"]
+    for k in range(0, len(scs), 2):
+        pair = scs[k:k + 2]
+        if k:
+            L.append("\\midrule")
+        L.append(" & " + " & ".join(f"\\multicolumn{{3}}{{c}}{{{t}}}" for _, t in pair) + " \\\\")
+        L.append("".join(f"\\cmidrule(lr){{{2 + 3 * i}-{4 + 3 * i}}}" for i in range(len(pair))))
+        L.append("Method & " + " & ".join("RMSE & $\\Delta$ & Reps" for _ in pair) + " \\\\")
+        L.append("\\midrule")
+        best = {s: min(v["rmse"] for v in summ[s]["methods"].values() if v.get("rmse") is not None) for s, _ in pair}
+        for m in ALT_ORDER:
+            if not any(m in summ[s]["methods"] for s, _ in pair):
+                continue
+            cells = []
+            for s, _ in pair:
+                v = summ[s]["methods"].get(m)
+                if v is None or v.get("rmse") is None:
+                    cells += ["--", "--", "--"]
+                    continue
+                r = f3(v["rmse"])
+                if v["rmse"] <= best[s] + 0.005:
+                    r = "\\textbf{" + r + "}"
+                q = rl.get(s, {}).get("selreg", {}).get(m)
+                if m == "selreg" or q is None:
+                    cells += [r, "--", "--"]
+                else:
+                    cells += [r, g(q["mean_diff"]), f"{q['replicates_reference_better']}/{q['n_replicates']}"]
+            L.append(" & ".join([LABEL[m]] + cells) + " \\\\")
     L += ["\\bottomrule", "\\end{tabular}", "\\end{table}"]
     return "\n".join(L) + "\n"
 
@@ -515,7 +607,9 @@ def table_runtime(summ):
     scs = [s for s, _ in MAIN_SC if s in summ]
     L = ["\\begin{table}[htbp]", "\\centering", "\\scriptsize",
          "\\caption{Median wall time per job (seconds; one CPU thread for Python methods; R methods single-threaded), "
-         "including model selection and test imputation.}", "\\label{tab:runtime}",
+         "including model selection and test imputation. Pirat and Pirat-T are transductive and were fitted once per data "
+         "replicate; their entry is the median fit time. Linear variant: runs without interval output; in brackets, the "
+         "re-runs that also computed 90\\% and other predictive intervals (500 weighted draws per entry).}", "\\label{tab:runtime}",
          "\\begin{tabular}{l" + "r" * len(scs) + "}", "\\toprule",
          "Method & " + " & ".join(hdr(dict(MAIN_SC)[s]) for s in scs) + " \\\\", "\\midrule"]
     for m in MAIN_ORDER:
@@ -523,8 +617,14 @@ def table_runtime(summ):
             continue
         vals = []
         for s in scs:
-            v = summ[s]["methods"].get(m, {}).get("runtime_median_s")
-            vals.append("--" if v is None else (f"{v:.1f}" if v < 100 else f"{v:.0f}"))
+            mv = summ[s]["methods"].get(m, {})
+            v = mv.get("r_fit_seconds_median") if m in ("pirat", "pirat_t") else mv.get("runtime_median_s")
+            fmt_ = lambda x: f"{x:.1f}" if x < 100 else f"{x:.0f}"
+            cell = "--" if v is None else fmt_(v)
+            w = mv.get("runtime_median_s_with_intervals")
+            if v is not None and w is not None:
+                cell += f" [{fmt_(w)}]"
+            vals.append(cell)
         L.append(" & ".join([LABEL[m]] + vals) + " \\\\")
     L += ["\\bottomrule", "\\end{tabular}", "\\end{table}"]
     return "\n".join(L) + "\n"
@@ -551,7 +651,7 @@ def table_scaling(scaling):
 def table_strata(strata):
     if not strata:
         return ""
-    order = ["vae_full", "selreg", "abl_no_latent", "abl_mar_likelihood", "missforest_r", "knn_cog", "miwae_cog",
+    order = ["vae_full", "selreg", "abl_no_latent", "abl_mar_likelihood", "pirat_t", "pirat", "missforest_r", "knn_cog", "miwae_cog",
              "notmiwae_cog", "proda", "cognate_ols", "mindet_r", "dsn", "qrilc_r", "observed_mean", "tobit"]
     labs = [("rare", "rarely"), ("some", "sometimes"), ("usual", "usually")]
     n = {k: strata["vae_full"][k]["n"] for k, _ in labs}
@@ -632,7 +732,8 @@ def numbers(summ, scaling):
         ms = summ[sc]["methods"]
         out[sc] = {m: {k: v[k] for k in ("rmse", "rmse_sd", "bias", "within_feature_r", "coverage90",
                                          "coverage_conformal", "coverage_level50", "coverage_level80",
-                                         "coverage_level95", "runtime_median_s", "active_units",
+                                         "coverage_level95", "coverage_pseudo", "runtime_median_s",
+                                         "r_fit_seconds_median", "active_units",
                                          "ds_de_t_spearman", "ds_de_precision", "ds_de_recall",
                                          "ds_coabundance_mae", "ds_de_calls", "ds_de_calls_reference")
                        if v.get(k) is not None}
@@ -673,14 +774,16 @@ def main():
     supp = []
     for i, (sc, t) in enumerate(MAIN_SC, 1):
         if sc in summ:
-            supp.append(table_full(summ, sc, {"SIM": "Nonlinear simulator", "PDAC": "CPTAC PDAC (semi-synthetic, imposed mask)",
+            supp.append(table_full(summ, sc, {"SIM": "Simulator", "PDAC": "CPTAC PDAC (semi-synthetic, imposed mask)",
                                               "LUAD": "CPTAC LUAD (semi-synthetic, imposed mask)",
                                               "PROCAN": "ProCan DIA (natural missingness)"}[sc], f"tab:full{sc.lower()}", rl))
     w("tableS_full.tex", "\n".join(supp))
     w("tableS_sweeps.tex", table_sweeps(summ))
+    w("tableS_dsacc.tex", table_ds_accuracy(summ))
     w("tableS_runtime.tex", table_runtime(summ))
     w("tableS_scaling.tex", table_scaling(scaling))
     w("tableS_replevel.tex", table_replevel(rl))
+    w("tableS_alt.tex", table_alt(summ, rl))
     w("tableS_strata.tex", table_strata(load("procan_strata.json")))
     w("tableS_reptruth.tex", table_reptruth(load("replicate_truth_sim.json")))
     w("tableS_diag.tex", table_diag(load("missingness_diagnostic.json")))

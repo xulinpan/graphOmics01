@@ -232,6 +232,10 @@ class TCSImputer:
         observed value as both bounds. Nominal coverage is approximate (see the paper's
         calibration analysis).
         """
+        import warnings
+        warnings.warn("tcsimpute predictive intervals are a diagnostic: in the benchmark they under-covered "
+                      "missing values at every nominal level and are not calibrated for missing entries.",
+                      UserWarning, stacklevel=2)
         R, P, index, columns = self._prepare(rna, protein)
         rna_z, prot_z, mask = self._standardize(R, P)
         if self.model == "linear":
