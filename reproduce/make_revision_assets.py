@@ -603,6 +603,51 @@ def table_alt(summ, rl):
     return "\n".join(L) + "\n"
 
 
+def table_procan_corrected(pc):
+    """Corrected-matching ProCan rerun (Supplementary Table S25)."""
+    if not pc:
+        return "% procan_corrected.json not available\n"
+    rows = [("observed_mean", "Observed mean"),
+            ("no_rna_selection", "Selection, no transcripts"),
+            ("rna_mar", "Transcripts, MAR likelihood"),
+            ("selreg", "tcsimpute (linear)"),
+            ("cognate_ols", "Cognate OLS"), ("knn_cog", "KNN"), ("mindet_r", "MinDet")]
+    F, E = pc["panels"]["fixed"], pc["panels"]["expanded"]
+    rng = lambda v: f"{v['rmse']:.3f} ({v['rmse_min']:.3f}--{v['rmse_max']:.3f})"
+    sg = lambda x: f3(x, True)
+    L = ["\\begin{table}[htbp]", "\\centering", "\\scriptsize", "\\setlength{\\tabcolsep}{3pt}",
+         "\\caption{ProCan rerun with corrected protein--transcript matching (Section~S14): the seven methods that completed all "
+         "20 grid points (4 primary-run choices $\\times$ 5 splits) on both panels. RMSE: hidden-entry test RMSE, mean over grid "
+         "points (range of the four primary-run-choice means). $\\Delta$ legacy: mean difference from the same method's main-benchmark "
+         "predictions (Table~S4), rescored on the fixed panel's proteins. The first four rows form a factorial of the linear variant's components: "
+         "transcripts in the mean model (no/yes) $\\times$ likelihood (MAR/selection). Below the table: factorial contrasts "
+         "(mean RMSE difference; range over primary-run choices; choices with a positive difference). The second and third rows "
+         "are the two control arms; `selection for MAR' replaces the MAR likelihood by the selection likelihood.}",
+         "\\label{tab:procancorr}",
+         "\\begin{tabular}{lrrrrr}", "\\toprule",
+         " & \\multicolumn{3}{c}{Fixed panel (1{,}199--1{,}206 proteins)} & \\multicolumn{2}{c}{Expanded panel (1{,}500 proteins)} \\\\",
+         "\\cmidrule(lr){2-4}\\cmidrule(lr){5-6}",
+         "Method & RMSE (range) & Bias & $\\Delta$ legacy & RMSE (range) & Bias \\\\", "\\midrule"]
+    for m, lab in rows:
+        f, e = F["methods"][m], E["methods"][m]
+        dl = F["minus_legacy"].get(m)
+        L.append(" & ".join([lab, rng(f), sg(f["bias"]), "--" if dl is None else sg(dl["mean"]), rng(e), sg(e["bias"])]) + " \\\\")
+        if m == "selreg":
+            L.append("\\midrule")
+    L += ["\\midrule", "\\multicolumn{6}{l}{\\textit{Factorial contrasts}} \\\\"]
+    labs = [("selection_given_no_RNA", "Selection for MAR, no transcripts"),
+            ("RNA_given_MAR", "Adding transcripts, MAR"),
+            ("RNA_given_selection", "Adding transcripts, selection"),
+            ("selection_given_RNA", "Selection for MAR, transcripts"),
+            ("RMSE_interaction", "Interaction")]
+    for k, lab in labs:
+        a, b = F["factorial"][k], E["factorial"][k]
+        cell = lambda v: f"{sg(v['mean'])} ({sg(v['min'])} to {sg(v['max'])}; {v['positive']}/{v['n']})"
+        L.append(f"{lab} & \\multicolumn{{3}}{{r}}{{{cell(a)}}} & \\multicolumn{{2}}{{r}}{{{cell(b)}}} \\\\")
+    L += ["\\bottomrule", "\\end{tabular}", "\\end{table}"]
+    return "\n".join(L) + "\n"
+
+
 def table_runtime(summ):
     scs = [s for s, _ in MAIN_SC if s in summ]
     L = ["\\begin{table}[htbp]", "\\centering", "\\scriptsize",
@@ -784,6 +829,7 @@ def main():
     w("tableS_scaling.tex", table_scaling(scaling))
     w("tableS_replevel.tex", table_replevel(rl))
     w("tableS_alt.tex", table_alt(summ, rl))
+    w("tableS_procancorr.tex", table_procan_corrected(load("procan_corrected.json")))
     w("tableS_strata.tex", table_strata(load("procan_strata.json")))
     w("tableS_reptruth.tex", table_reptruth(load("replicate_truth_sim.json")))
     w("tableS_diag.tex", table_diag(load("missingness_diagnostic.json")))

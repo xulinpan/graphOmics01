@@ -86,9 +86,11 @@ tcsimpute --rna rna.csv --protein protein.csv --out imputed.csv --intervals pi [
 - **Is the selection model appropriate?** It assumes that missing values are mostly below a detection
   limit. If a protein that is missing in one run is usually quantified in other runs of the same
   sample (sporadic misses, common in DIA data), a missing-at-random model (`likelihood="mar"`) was
-  more accurate in the paper. As a quick check, compute for each protein the AUC with which its
-  transcript separates observed from missing samples: medians near 0.5 indicate missingness unrelated
-  to abundance.
+  more accurate in the paper. On those data the detection model and the transcript term each helped
+  on their own but were worse together, so also compare `model="linear"` with `likelihood="mar"` and with
+  a transcript-free baseline on withheld observed values. As a quick check, compute for each protein the
+  AUC with which its transcript separates observed from missing samples: medians near 0.5 indicate
+  missingness unrelated to abundance (this check did not flag the DIA data in the paper).
 
 ### Scope
 
@@ -118,7 +120,11 @@ is scored against the mean of the cell line's other runs.
 The ablations attribute the gains to the selection likelihood and the cognate-transcript term.
 Transformer fusion and the contrastive term did not measurably help. Pirat-T was run on protein-level data, one protein per group. Nominal 90% intervals covered 73–84% of hidden values (77–87% after the built-in conformal recalibration), so treat them as a diagnostic (`predict_interval` warns): they are not reliably calibrated for missing values, because the recalibration uses observed
 values, which are not exchangeable with missing ones when missingness depends on abundance. On ProCan, transcript-aware imputers that assume missingness at random were more
-accurate, because many DIA misses are sporadic rather than below a detection limit.
+accurate, because many DIA misses are sporadic rather than below a detection limit. A partial rerun with
+reciprocal UniProt-HGNC protein-transcript matching (7 methods, two protein panels; Supplementary Section S14)
+reproduced this. In a factorial of the linear model's components on those panels, a selection model without
+transcripts (RMSE 1.01-1.04) and transcript regression with a missing-at-random likelihood (1.06) each beat
+the observed mean (1.22-1.23), while the full linear model (1.15-1.16) was worse than either.
 
 ## Reproducing the paper
 
