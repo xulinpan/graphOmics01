@@ -15,8 +15,8 @@ def main(argv=None):
     ap.add_argument("--rna", required=True, help="Complete RNA matrix (log scale), samples x genes.")
     ap.add_argument("--protein", required=True, help="Protein matrix (log scale) with empty cells for missing.")
     ap.add_argument("--out", required=True, help="Output CSV with imputed proteins.")
-    ap.add_argument("--model", choices=("vae", "linear"), default="vae",
-                    help="'vae' (default) or the encoder-free 'linear' variant.")
+    ap.add_argument("--model", choices=("linear", "vae"), default="linear",
+                    help="'linear' (default) or the multimodal 'vae' variant.")
     ap.add_argument("--limit-scale", choices=("raw", "standardized"), default="raw",
                     help="'raw' for log intensities, 'standardized' for ratio data (default: raw).")
     ap.add_argument("--intervals", help="Prefix for 90%% interval CSVs (<prefix>_lower.csv, <prefix>_upper.csv).")

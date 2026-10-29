@@ -62,8 +62,9 @@ class TCSImputer:
 
     Parameters
     ----------
-    model : {"vae", "linear"}
-        Which variant to fit.
+    model : {"linear", "vae"}
+        Which variant to fit. ``"linear"`` (the default since 0.2.3) has no architecture to tune
+        and fits in seconds; ``"vae"`` can be better when detection limits vary widely between proteins.
     limit_scale : {"raw", "standardized"}
         ``"raw"`` assumes one detection limit on the original log scale, as for log intensities.
         ``"standardized"`` assumes a common limit in per-protein standardized units, as for
@@ -85,7 +86,7 @@ class TCSImputer:
     """
 
     def __init__(self, limit_scale="raw", validation_fraction=0.2, random_state=0, config=None,
-                 model="vae", **config_overrides):
+                 model="linear", **config_overrides):
         if model not in ("vae", "linear"):
             raise ValueError("model must be 'vae' or 'linear'.")
         self.model = model

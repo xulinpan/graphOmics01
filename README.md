@@ -6,8 +6,7 @@
 
 In mass-spectrometry proteomics, many values are missing because the peptide fell below a detection
 limit, so whether a value is observed depends on the value itself. `tcsimpute` imputes those values
-from a paired transcriptome. Its core is a multimodal variational autoencoder whose protein
-likelihood is a probit selection model:
+from a paired transcriptome. Its core is a probit selection model:
 
 - a learned detection limit, with shrunken per-protein deviations and a per-sample offset;
 - a small missing-completely-at-random component;
@@ -15,11 +14,11 @@ likelihood is a probit selection model:
 - closed-form conditional means for missing values, and importance-weighted predictive intervals.
 
 The protein mean comes either from a linear regression on the cognate transcript and RNA principal
-components (`model="linear"`, fast) or from a multimodal variational autoencoder (`model="vae"`, the
-default), whose latent variable captures shared sample-level structure.
+components (`model="linear"`, the default since 0.2.3; fast, nothing to tune) or from a multimodal
+variational autoencoder (`model="vae"`), whose latent variable captures shared sample-level structure.
 
 This repository accompanies the paper *tcsimpute: transcriptome-guided imputation of left-censored
-proteomics with a probit selection model* (Pan, Lv and Wang, submitted) and contains everything needed
+proteomics with a probit selection model* (Pan, Wang, Lv and Xie, submitted) and contains everything needed
 to reproduce it.
 
 ## Installation
@@ -45,7 +44,7 @@ from tcsimpute import TCSImputer
 rna = pd.read_csv("rna.csv", index_col=0)          # samples x genes, log scale, complete
 protein = pd.read_csv("protein.csv", index_col=0)  # samples x proteins, log scale, NaN = missing
 
-imp = TCSImputer(limit_scale="raw").fit(rna, protein)     # or TCSImputer(model="linear", ...)
+imp = TCSImputer(limit_scale="raw").fit(rna, protein)     # linear variant; TCSImputer(model="vae") for the VAE
 imputed = imp.transform(rna, protein)                       # observed values are kept as they are
 lower, upper = imp.predict_interval(rna, protein, level=0.9)
 imp.save("imputer.pt")                                      # reload with TCSImputer.load(...)
@@ -56,7 +55,7 @@ imp.save("imputer.pt")                                      # reload with TCSImp
 From the command line:
 
 ```bash
-tcsimpute --rna rna.csv --protein protein.csv --out imputed.csv --intervals pi [--model linear]
+tcsimpute --rna rna.csv --protein protein.csv --out imputed.csv --intervals pi [--model vae]
 ```
 
 ### Choosing options
@@ -71,8 +70,8 @@ tcsimpute --rna rna.csv --protein protein.csv --out imputed.csv --intervals pi [
 - **Epoch selection.** `validation_fraction` (default 0.2) holds out samples. The epoch is chosen by
   the model's own objective on those samples, so the true values of missing entries are never
   needed.
-- **`model`.** `"linear"` fits in seconds and was as accurate as the VAE in most of the paper's
-  settings; it is a good default. `"vae"` was better when per-protein detection limits varied widely
+- **`model`.** `"linear"` (the default) fits in seconds and was as accurate as the VAE in most of the
+  paper's settings. `"vae"` was better when per-protein detection limits varied widely
   and on PDAC tumours.
 - **Per-protein detection limits.** `limit_deviation_sd` (default 0.25, standardized units) is the
   prior SD of each protein's deviation from the shared detection limit. In the paper's simulations,
@@ -196,8 +195,12 @@ the rank tests.
 ## Citation
 
 See `CITATION.cff`. Until the paper is published, please cite the software archive:
-Pan X, Lv J, Wang C. tcsimpute (version 0.2.2). Zenodo. https://doi.org/10.5281/zenodo.23280803
-(this DOI covers all versions and resolves to the latest; version 0.2.1 is https://doi.org/10.5281/zenodo.23288086).
+Pan X, Wang C, Lv J, Xie K. tcsimpute. Zenodo. https://doi.org/10.5281/zenodo.23280803
+(this DOI covers all versions and resolves to the latest; the paper used version 0.2.2, and version 0.2.1 is
+https://doi.org/10.5281/zenodo.23288086).
+
+**Version 0.2.3** makes the linear variant the default (`TCSImputer()` and the command line), as the paper
+describes. The benchmark always names the model explicitly, so no result changes.
 
 ## License
 

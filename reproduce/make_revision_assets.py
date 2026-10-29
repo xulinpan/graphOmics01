@@ -89,13 +89,20 @@ def setup_mpl():
     plt.rcParams.update({"font.size": 7, "font.family": "DejaVu Sans", "axes.spines.top": False,
                          "axes.spines.right": False, "axes.edgecolor": "#8a8a85", "axes.linewidth": 0.6,
                          "xtick.color": "#52514e", "ytick.color": "#52514e", "axes.labelcolor": "#0b0b0b",
-                         "xtick.major.width": 0.6, "ytick.major.width": 0.6, "legend.frameon": False})
+                         "xtick.major.width": 0.6, "ytick.major.width": 0.6, "legend.frameon": False,
+                         "pdf.fonttype": 42, "ps.fonttype": 42})
     return plt
 
 
 def save(fig, out, name):
     fig.savefig(out / f"{name}.pdf")
-    fig.savefig(out / f"{name}.tif", dpi=350, pil_kwargs={"compression": "tiff_lzw"})
+    # journal artwork: RGB (no alpha), 600 dpi for combination figures, LZW-compressed TIFF
+    import io
+    from PIL import Image
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=600, facecolor="white")
+    buf.seek(0)
+    Image.open(buf).convert("RGB").save(out / f"{name}.tif", dpi=(600, 600), compression="tiff_lzw")
     fig.savefig(out / f"{name}.jpg", dpi=150)
 
 

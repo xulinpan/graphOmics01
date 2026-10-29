@@ -34,5 +34,4 @@ cover = ((lower.to_numpy() <= truth.to_numpy()) & (truth.to_numpy() <= upper.to_
 print(f"RMSE  imputer: {np.sqrt(np.mean(err ** 2)):.3f}   observed-mean fill: {np.sqrt(np.mean(naive ** 2)):.3f}")
 print(f"bias  imputer: {err.mean():+.3f}   observed-mean fill: {naive.mean():+.3f}")
 print(f"90% interval coverage of hidden values: {cover.mean():.2f}")
-print("selected epoch:", imp.diagnostics_["selected_epoch"],
-      "| active latent units:", imp.diagnostics_["active_units_train"])
+print("model:", imp.model)   # "linear" by default; TCSImputer(model="vae") fits the autoencoder variant

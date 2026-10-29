@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 title: "tcsimpute: transcript-conditioned selection imputation of left-censored proteomics"
-version: 0.2.2
+version: 0.2.3
 doi: 10.5281/zenodo.23280803
 identifiers:
   - type: doi
@@ -10,7 +10,7 @@ identifiers:
   - type: doi
     value: 10.5281/zenodo.23288086
     description: "Version 0.2.1"
-date-released: 2026-10-15
+date-released: 2026-10-29
 license: MIT
 repository-code: "https://github.com/xulinpan/graphOmics01"
 authors:
@@ -18,20 +18,25 @@ authors:
     given-names: Xulin
     email: xxp5066@psu.edu
     affiliation: "Pennsylvania State University, University Park, PA 16802, USA"
-  - family-names: Lv
-    given-names: Jun
-    affiliation: "School of Mathematics and Statistics, Yunnan University, Kunming 650091, Yunnan, China"
   - family-names: Wang
     given-names: Chuanming
     affiliation: "School of Biological and Food Engineering, Honghe University, Mengzi, China"
+  - family-names: Lv
+    given-names: Jun
+    affiliation: "School of Mathematics and Statistics, Yunnan University, Kunming 650091, Yunnan, China"
+  - family-names: Xie
+    given-names: Kun
+    affiliation: "Key Laboratory of Biological Resources and Ecology of Pamirs Plateau in Xinjiang Uygur Autonomous Region, College of Life and Geographic Science, Kashi University, Kashi 844000, China"
 preferred-citation:
   type: article
   title: "tcsimpute: transcriptome-guided imputation of left-censored proteomics with a probit selection model"
   authors:
     - family-names: Pan
       given-names: Xulin
-    - family-names: Lv
-      given-names: Jun
     - family-names: Wang
       given-names: Chuanming
+    - family-names: Lv
+      given-names: Jun
+    - family-names: Xie
+      given-names: Kun
   status: submitted

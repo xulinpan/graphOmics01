@@ -8,7 +8,7 @@ from tcsimpute import TCSImputer, match_cognates
 from tcsimpute.benchmark.data import S2Config, simulate_s2
 
 SMALL = S2Config(n_samples=80, n_genes=150, n_proteins_generated=60, n_proteins=40, n_regulators=20)
-FAST = dict(max_epochs=10, eval_every=5)
+FAST = dict(model="vae", max_epochs=10, eval_every=5)
 
 
 @pytest.fixture(scope="module")
@@ -144,3 +144,7 @@ def test_linear_variant_fit_transform_intervals_and_roundtrip(frames, tmp_path):
     assert again.transform(rna, observed).equals(out)
     with pytest.raises(ValueError):
         TCSImputer(model="tree")
+
+
+def test_default_model_is_linear():
+    assert TCSImputer().model == "linear"

@@ -1,0 +1,32 @@
+{
+  "title": "tcsimpute: transcript-conditioned selection imputation of left-censored proteomics",
+  "upload_type": "software",
+  "description": "<p>tcsimpute imputes mass-spectrometry protein values that are missing because they fell below a detection limit, using a paired transcriptome. It couples a probit detection model (shared detection limit, shrunk per-protein deviations, sample offsets and a rate of random misses) with protein means predicted from each protein's cognate transcript, by linear regression (the default) or a multimodal variational autoencoder, and gives the conditional mean of each missing value in closed form.</p><p>This software accompanies the manuscript \"tcsimpute: transcriptome-guided imputation of left-censored proteomics with a probit selection model\" (Pan, Wang, Lv and Xie; submitted). Version 0.2.2 was used for the paper; 0.2.3 makes the linear variant the default, as the paper describes, without changing any benchmark result.</p>",
+  "creators": [
+    {
+      "name": "Pan, Xulin",
+      "affiliation": "Pennsylvania State University, University Park, PA 16802, USA"
+    },
+    {
+      "name": "Wang, Chuanming",
+      "affiliation": "School of Biological and Food Engineering, Honghe University, Mengzi, China"
+    },
+    {
+      "name": "Lv, Jun",
+      "affiliation": "School of Mathematics and Statistics, Yunnan University, Kunming 650091, Yunnan, China"
+    },
+    {
+      "name": "Xie, Kun",
+      "affiliation": "Key Laboratory of Biological Resources and Ecology of Pamirs Plateau in Xinjiang Uygur Autonomous Region, College of Life and Geographic Science, Kashi University, Kashi 844000, China"
+    }
+  ],
+  "license": "MIT",
+  "keywords": [
+    "proteomics",
+    "imputation",
+    "missing not at random",
+    "selection model",
+    "multi-omics",
+    "transcriptomics"
+  ]
+}

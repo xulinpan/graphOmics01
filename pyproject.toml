@@ -4,16 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tcsimpute"
-version = "0.2.2"
-description = "Transcript-conditioned selection imputation of left-censored proteomics with a probit-selection multimodal VAE"
+version = "0.2.3"
+description = "Transcript-conditioned selection imputation of left-censored proteomics with a probit selection model (linear or multimodal-VAE protein mean)"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [
   { name = "Xulin Pan", email = "xxp5066@psu.edu" },
-  { name = "Jun Lv" },
   { name = "Chuanming Wang" },
+  { name = "Jun Lv" },
+  { name = "Kun Xie" },
 ]
 keywords = ["proteomics", "imputation", "missing not at random", "variational autoencoder", "multi-omics", "censoring"]
 classifiers = [
